@@ -1,3 +1,13 @@
+---
+title: |
+  | Predicción del Éxito de Atracciones Turísticas:
+  | Un Enfoque de Deep Learning
+subtitle: "Práctica del Módulo de Deep Learning - KeepCoding"
+author: "Miguel Angel Pardo"
+#date: "`r Sys.Date()`"
+output: pdf_document
+---
+
 ## Introducción
 
 Este ejercicio tiene como objetivo desarrollar un modelo avanzado de Deep Learning que permita predecir el
