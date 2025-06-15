@@ -1,0 +1,112 @@
+Este ejercicio tiene como objetivo desarrollar un modelo avanzado de Deep Learning que permita predecir el
+nivel de engagement que generarán distintos puntos de interés (POIs) turísticos. Para esta tarea se dispone
+de dos tipos de datos: metadatos estructurados asociados a cada POI y una imagen representativa del mismo.
+
+Dentro de los metadatos hay varias variables relacionadas con el 'engagement' del POI.
+
+El estudio se divide en los siguientes notebooks:
+
+1_EDA_exercise.ipynb
+2_FCNN_execise.ipynb
+3_CNN_exercise.ipynb
+4_FCNN_CNN_exercise.ipynb
+
+A continuación se describen las acciones realizadas en cada uno de ellos.
+
+1_EDA_exercise.ipynb: 
+
+Análisis exploratorio general.
+
+En primer lugar, se realiza una exploración general de los datos: número de muestras, número de variables, estructura de los datos y presencia de valores NA.
+
+Variable representativa 'engagement'.
+
+Se estudia como generar una variable de tipo cualitativa que represente el 'engagement' para cada muestra a partir de las variables relacionadas con el 'engagement'. Se simplifica el número de variables mediante la generación de una nueva variable 'Likes_Dislikes' a partir de la diferencia entre las variables 'Likes' y 'Dislikes'. Para esta nueva variable y para las restantes se estudia su distribución y en todas ellas se observan varios picos (tres o cuatro según la variable) Esto indicaría la presencia de varias poblaciones en las muestras. Se decide usar un modelo sencillo para construir la variable que represente el 'engagement'. Se normalizan los valores de las variables 'Likes_Dislikes', 'Visits' y 'Bookmarks' en el rango de 0 a 1. Se calcula un 'score' sumando para cada muestra los valores normalizados de cada variable y dividiendo el valor entre tres. Se representa una distribución de este 'score' y se obsevan tres poblaciones. Se fijan dos puntos de corte (0.31 y 0.52) para asignar una categoría a cada muestra ('High', 'Medium' y 'Low'). 
+
+TODO: Probar a usar sólo dos categorías de forma que ambos niveles estén más equilibrados
+
+Imágenes.
+Se realiza una representación aleatoria de imágenes de las muestras con su 'engagement score' asociado. Se plantea la posibilidad de que hubiera muestras que tuvieran imágenes que no representaran nada, por ejemplo, todo en negro o en blanco. Para buscar las muestras con este tipo de imágenes, para cada imagen se calcula la desviación estandar (SD) en cada canal RGB. Se representa la distribución de estos valores para cada canal y se observa que hay imágenes con valores bajos de SD en algún canal. Se visualizan imágenes que muestren valores de SD por debajo de 1 en algún canal y se ven claros ejemplos de imágenes 'vacias'. Se dejará al algortimo que trate con estas imágenes y ajuste el modelo teniendo en cuenta estas imágenes también.
+
+shortDescription
+Se analiza la variable 'shortDescription' mostrando algunos ejemplos aleatorios y dibujando la distribución del número de palabras en la variable. Para la mayoría de muestras la descripción contiene aproximadamente 19 palabras aunque hay descripciones con sólo dos palabras y hasta con 89 palabras.
+
+TODO: No parece muy útil el uso del número de palabras como variable de entrada al modelo debido a esta poca variabilidad. Sin embargo, podría ser interesante emplear de alguna manera el texto para ayudar a la predicción del 'engagement' de la muestra.
+
+categories
+Para la variable 'categories', la mayoría de las muestras contienen tres categorías y la categoría más común es 'Historia' y la menos común es 'Gastronomía'.
+
+tags
+Para la variable 'tier' el valor más común es uno y el menos común es cuatro. Por último, se observa la distribución de las variables contínuas 'locationLon', 'locationLat' y 'xps'
+
+2_FCNN_exercise.ipynb (fully connected neuronal network)
+
+Se utilizan las variables de metadata para entrenar una 'fully connected neuronal network' que prediga la variable asociada al 'engagement'.
+
+Las muestras se distribuyen en datos de entrenamiento, datos de validación y datos de test. Del total de datos, el 20% se destinan a test. Del otro 80%, el 20% se dedican a validación y el restante a entrenamiento. Esta distribución de muestras se utiliza también en el resto de modelos entrenados. La variable asociada al 'engagement' se calcula siguiendo la metodología descrita en el Análisis Exploratorio de Datos.
+
+Se siguen estos pasos de procesado de datos:
+
+- Se genera variable con el número de etiquetas ('NumTags')
+- Se codifica la variable 'categories' usando 'one hot encoder'.
+- Escalado de las variables 'xps', 'locationLon' y 'locationLat'.
+- Codificación de la variable 'tier' usando 'one hot encoder.
+
+El escalado de las variables se hace tomando como referencia los datos de entrenamiento.
+
+Este procesado de datos se aplica a los tres conjuntos de datos (entrenamiento, validación y test)
+
+Se entrenará una red 'fully connected' con una capa de 32 neuronas, aplicando 'batch normalization' antes de aplicar función de activación del tipo ReLU. Se aplicará 'dropout' en esta capa como técnica de regularización. Como algoritmo de optimización se elige Adam y CrossEntropyLoss como función de pérdida. 
+
+Se fijan los hiperparámetros de número de épocas y tamaño del 'batch' a 10 y 128 respectivamente y se optimiza el 'learning_rate' y 'dropout_rate' mediante Optuna empleando el algortimo TPESampler. La configuración se configura para 16 'trials'. Se encuentran los valores óptimos para 'learning rate' y 'dropout rate' ambos con la misma relevancia en la optimización. Se fijan estos valores para entrenamiento final del modelo que se testea con el conjunto de datos correspondiente. Los valores para la función de pérdida y precisión representados en las gráficas muestran una tendencia estable con ausencia de overfitting (la precisión final es superior en validación y la función de pérdida es inferior en validación). La precisión obtenida para el conjunto de test (74.20%) es similar al valor final obtenido con los datos de entrenamiento.
+
+La elección del número de épocas parece correcto ya que se llega a un valor estable de precisión.
+
+
+3_CNN_exercise.ipynb (convolutional neuronal network)
+
+Se utilizan las imágenes para entrenar una 'convolutional neuronal network' que prediga la variable asociada al 'engagement'.
+
+La distribución de muestras y el cálculo de la variable asociada a 'engagement' se realizan como ya se describió anteriormente.
+
+Se entrenará una red convolucional formada por una capa con ocho 'kernels' de 3x3 y 'padding' 1. Se aplica 'batch normalization' antes de aplicar función de activación del tipo ReLU. Se aplica función de 'max pooling', seguida de 'dropout'. Al resultado de la capa de convolución se le aplica 'global max pooling' y 'global average pooling'. Tras este procesado, el número de variables se queda en ocho, que se introducen en una capa 'fully connected' a modo de clasificador. Como algoritmo de optimización se elige Adam y CrossEntropyLoss como función de pérdida. 
+
+Se fijan los hiperparámetros de número de épocas y tamaño del 'batch' a 10 y 128 respectivamente y se optimiza el 'learning_rate' y 'dropout_rate' mediante Optuna empleando el algortimo TPESampler. La configuración se configura para ocho 'trials'. 
+
+Los valores para 'dropout_rate' y 'learning_rate' que dan el menor valor de precisión final se emplean para entrenamiento final del modelo que se testea con el conjunto de datos correspondiente. Los valores para la función de pérdida y precisión indican que el entrenamiento es rápido, ya que en el primer 'epoch' ya se alcanza un valor alto de precisión y un valor bajo de función de pérdida. No se observa overfitting ya que los valores finales de precisión en validación y testeo están por encima del valor final para el entrenamiento. La precisión obtenida para el conjunto de test (77.39%) es similar al valor final obtenido con los datos de entrenamiento.
+
+4_FCNN_CNN_exercise.ipynb (fully connected + convolutional neuronal network)
+
+Se utiliza una red neuronal 'dual-branch' usando los metadatos en una red 'fully connected' y las imágenes en una red convolucional. Los resultados de redes se juntan para pasarlos por un red a modo de clasificador y así obtener la predicción. 
+
+La distribución de muestras y el cálculo de la variable asociada a 'engagement' se realizan como ya se describió anteriormente.
+
+La arquitectura de las dos ramas es como se describió anteriormente para 2_FCNN_exercise.ipynb y 3_CNN_exercise.ipynb. El clasificador recibe las 32 variables resultantes de juntar la salida de las dos redes anteriores y las pasa por una capa con 16 neuronas. 
+
+Se fijan los hiperparámetros de número de épocas y tamaño del 'batch' a 6 y 128 respectivamente y se optimiza el 'learning_rate' y 'dropout_rate' mediante Optuna empleando el algortimo TPESampler. La configuración se configura para ocho 'trials'. 
+
+Los valores para 'dropout_rate' y 'learning_rate' que dan el menor valor de precisión final se emplean para entrenamiento final del modelo que se testea con el conjunto de datos correspondiente. Los valores para la función de pérdida y precisión indican que el entrenamiento es rápido, ya que en el primer 'epoch' ya se alcanza un valor alto de precisión y un valor bajo de función de pérdida. Tras el primer 'epoch' ya se consiguen valores de precisión por encima de 75% para validación y entrenamiento. A partir de ahí, se gana en precisión para ambos conjuntos. La función de pérdida para el conjunto de validación tiene un comportamiento peculiar de aumento en los primeros 'epochs' y descenso progresivo en los siguientes. No se observa overfitting ya que los valores finales de precisión en validación y testeo están por encima del valor final para el entrenamiento. La precisión obtenida para el conjunto de test (83.44%) es similar al valor final obtenido con los datos de entrenamiento.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
