@@ -16,7 +16,7 @@ First, a general exploration of the data is performed: number of samples, number
 
 We explore how to create a qualitative variable representing 'engagement' for each sample using engagement-related metrics. A new variable, 'Likes_Dislikes,' is introduced by subtracting 'Dislikes' from 'Likes.'
 
-The distribution of variables is analyzed, revealing similar profiles for 'Likes,' 'Dislikes,' and 'Bookmarks.' Correlation analysis shows strong relationships between these variables. To avoid redundancy, 'Visits' and 'Likes_Dislikes' are selected to compute an engagement 'score.'
+The distribution of variables is analyzed, revealing similar profiles for 'Likes,' 'Dislikes,' and 'Bookmarks.' Correlation analysis shows strong relationships between these variables. To avoid redundancy, 'Visits' and 'Likes_Dislikes' are selected to compute an engagement 'score'.
 
 The 'Likes_Dislikes' and 'Visits' values are normalized to a [0, 1] range, and the score is calculated as their mean. The resulting score follows a distribution resembling a smoothed Gaussian curve skewed toward higher values. To classify engagement levels (high/low), the median score threshold of 0.29 is applied.
 
@@ -38,7 +38,7 @@ For the 'categories' variable, most samples contain three categories, with 'Hist
 
 ### Feature 'tags'
 
-The 'tags' variable exhibits an extremely high number of unique values (2,935), making it impractical for modeling. Consequently, this variable was discarded from the model.
+The 'tags' variable exhibits an extremely high number of unique values (2935), making it impractical for modeling. Consequently, this variable was discarded from the model.
 
 ### Feature 'tier'
 
@@ -46,7 +46,7 @@ In the 'tier' variable, the most frequent value is 1 and the least frequent is 4
 
 ### Quantitative features
 
-Finally, we visualize the distributions of the continuous variables: 'locationLon', 'locationLat' y 'xps'
+Finally, we visualize the distributions of the continuous variables: 'locationLon', 'locationLat' and 'xps'
 
 ## Data processing (2_DLA.ipynb)
 
@@ -133,7 +133,7 @@ The hyperparameter optimization leads to values that are at central points of th
 
 The table below presents a summary of the results across all tested models and optimization runs.
 
-|Model                     |Precision|Precision 0|Precision 1|Recall 0|Recall 1|Overfitting|
+|Model                     |Accuracy |Precision 0|Precision 1|Recall 0|Recall 1|Overfitting|
 |--------------------------|---------|----------|-----------|---------|---------|-----------|
 |FCNN                      |0.67     |0.74      |0.64       |0.46     |0.85     |Low        |
 |CNN                       |0.60     |0.57      |0.64       |0.64     |0.57     |No         |
