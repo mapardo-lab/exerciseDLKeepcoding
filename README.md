@@ -151,3 +151,12 @@ The models incorporating a pretrained ResNet18 (ResNet18 and FCNN-ResNet18 DB) s
 The FCNN model achieves one of the highest accuracy rates (67%) and the best sensitivity (85%) for high-engagement POIs. Some overfitting is observed in its training results. Despite its simplicity, its performance in accuracy and sensitivity makes it a strong candidate. To improve it, additional regularization (to reduce overfitting) could be tested, or the model’s complexity could be increased by adding layers/neurons (to boost accuracy).
 
 The best-performing models are the dual-branch architectures (FCNN + CNN branches). Both achieve the highest accuracy (68% and 69%), high sensitivity for high-engagement POIs (73% and 71%), and no overfitting. Further improvements could involve increasing network complexity (e.g., adjusting layers/neurons).
+
+# Reproducibility
+
+Create an environment with conda (version 25.1.1)
+
+```
+conda env create -f environtment.yaml
+conda activate cinnamon-classifier
+```
