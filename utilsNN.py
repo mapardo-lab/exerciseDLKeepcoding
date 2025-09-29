@@ -40,7 +40,7 @@ class CNN(nn.Module):
   Use batch normalization before apply a ReLU activation function. Max pooling and 
   dropout are applied
   - Global max and average pooling is applied
-  - 8 neuron fully-connected layer for the 16 input features from above steps
+  - 8 neuron fully-connected layer for the 16 output features from above steps
   Batch normalization, ReLU activation function and dropout regularization are applied
   - 3 neurons output layer
   """
@@ -127,7 +127,7 @@ class dual_branch(nn.Module):
     x = self.class_fcLayer1(x)
     return x
 
-def ResNet18_class():
+def ResNet18_pretrained():
   """
   Initializes a pretrained ResNet18 model for transfer learning with the following modifications:
   1. Loads weights pretrained on ImageNet
@@ -135,8 +135,8 @@ def ResNet18_class():
   3. Replaces the final fully-connected layer for binary classification
   """
   # build a model based on ResNet18
-  model = models.resnet18(pretrained=True)
-  model.eval()  # Set to evaluation mode
+  model = models.resnet18(weights='IMAGENET1K_V1')
+  #model.eval()  # Set to evaluation mode
 
   # freeze all layers of ResNet18 model so they are not trained (transfer learning)
   for param in model.parameters():
@@ -144,9 +144,33 @@ def ResNet18_class():
 
   # Change classificator by smaller one
   num_features = model.fc.in_features # input feature to classificator
-  model.fc = torch.nn.Linear(num_features, 2) # Three levels engagement
+  model.fc = torch.nn.Linear(num_features, 2) # Two levels engagement
 
   return model
+    
+def ResNet18_layer4():
+    """
+    Initializes a pretrained ResNet18 model for transfer learning with the following modifications:
+    1. Loads weights pretrained on ImageNet
+    2. Freezes all layers to prevent gradient updates
+    3. Replaces the final fully-connected layer for binary classification
+    """
+    # build a model based on ResNet18
+    model = models.resnet18(weights='IMAGENET1K_V1')
+    #model.eval()  # Set to evaluation mode
+
+    # Freeze early layers, keep later layers trainable
+    for name, param in model.named_parameters():
+        if 'layer4' not in name and 'fc' not in name:  # Freeze everything except layer4 and fc
+            param.requires_grad = False
+
+    # Change classificator by smaller one
+    num_features = model.fc.in_features # input feature to classificator
+    model.fc = torch.nn.Linear(num_features, 2) # Two levels engagement
+    
+    return model
+
+
 
 def ResNet18_branch():
   """

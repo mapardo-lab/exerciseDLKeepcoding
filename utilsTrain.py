@@ -10,17 +10,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
-def set_random_seed(seed=42):
-  """
-  Fixed seeds for reproducibility
-  """
-  torch.manual_seed(seed)
-  torch.cuda.manual_seed(seed)
-  torch.cuda.manual_seed_all(seed)
-  torch.backends.cudnn.deterministic = True
-  torch.backends.cudnn.benchmark = False
-  np.random.seed(seed)
-  random.seed(seed)
 
 def train_model(model, criterion, optimizer, num_epochs, trainloader, valloader, 
                 device, testloader=None, l1_lambda = None, scheduler = None, verbose = True):
@@ -54,8 +43,8 @@ def train_model(model, criterion, optimizer, num_epochs, trainloader, valloader,
         print(f'Epoch {epoch+1}, Loss: {loss}, Acc: {acc}, Val Loss: {val_loss}, Val Acc: {val_acc}, LR: {lr}')
   if testloader is not None:
     accuracy = evaluate_model(model, testloader, device)
-    accuracy100 = accuracy*100
-    plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs, test_acc = accuracy100) 
+    #accuracy100 = accuracy*100
+    plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs, test_acc = accuracy) 
   elif verbose:
     plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs) 
   else:
@@ -107,7 +96,8 @@ def train_epoch(model: nn.Module, device: torch.device, train_loader: DataLoader
     correct += predicted.eq(data['target']).sum().item()
 
   train_loss /= len(train_loader)
-  train_acc = 100. * correct / total
+  #train_acc = 100. * correct / total
+  train_acc = correct / total
 
   if scheduler is not None:
     scheduler.step()
@@ -149,7 +139,8 @@ def eval_epoch(model: nn.Module, device: torch.device,
       correct += predicted.eq(data['target']).sum().item()
 
   val_loss /= len(val_loader)
-  val_acc = 100. * correct / total
+  #val_acc = 100. * correct / total
+  val_acc = correct / total
 
   return val_loss, val_acc
 
@@ -214,3 +205,33 @@ def plot_training_curves(train_losses, val_losses, train_accs,
   plt.legend()
   plt.tight_layout()
   plt.show()
+    
+class Train:
+    def __init__(self):
+        """
+        Initialize Train object with empty lists for losses and accuracies.
+        """
+        self.train_losses = []
+        self.train_accs = []
+        self.val_losses = []
+        self.val_accs = []
+    
+    def update(self, train_loss, train_acc, val_loss, val_acc):
+        """
+        Add new training loss and accuracy values to the tracking lists.
+        """
+        self.train_losses.append(train_loss)
+        self.train_accs.append(train_acc)
+        self.val_losses.append(val_loss)
+        self.val_accs.append(val_acc)
+    
+    def to_dict(self):
+        """
+        Return training data as a dictionary.        
+        """
+        return {
+            'train_losses': self.train_losses,
+            'train_accs': self.train_accs,
+            'val_losses': self.val_losses,
+            'val_accs': self.val_accs
+        }
