@@ -6,95 +6,74 @@ import cv2
 from PIL import Image
 import os
 
-class meta_Dataset(Dataset):
-  """
-  Class for handling metadata features and feature related to engagement
-  """
-  def __init__(self, target, features, transform=None):
-    self.target = torch.tensor(target)
-    self.features = torch.tensor(features, dtype=torch.float32)
-    self.transform = transform
+class features_Dataset(Dataset): 
+    """
+    Class for handling feature related to engagement
+    """
+    def __init__(self, df, transform_features, transform_target):
+        self.data = df
+        self.transform_features = transform_features
+        self.transform_target = transform_target
+        self.features = transform_features.transform(df)
+        self.target  = self.transform_target.transform(self.data)
+    
+    def __len__(self):
+        return len(self.target)
+    
+    def __getitem__(self, idx):
+        # features 
+        features = torch.tensor(self.features[idx], dtype=torch.float32)
+        # target
+        target = torch.tensor(self.target[idx], dtype=torch.long)
+        # result
+        result = {'features': features, 'target': target}
+        return result
 
-  def __len__(self):
-    return len(self.target)
+class images_Dataset(Dataset): 
+    """
+    Class for handling images related to engagement
+    """
+    def __init__(self, df, transform_images, transform_target):
+        self.data = df
+        self.transform_images = transform_images
+        self.target  = transform_target.transform(self.data)
+    
+    def __len__(self):
+        return len(self.target)
+    
+    def __getitem__(self, idx):
+        # images
+        images_transformed = self.transform_images.transform(self.data.iloc[idx])
+        # target
+        target = torch.tensor(self.target[idx], dtype=torch.long)
+        # result
+        result = {'images': images_transformed, 'target': target}
+        return result
 
-  def __getitem__(self, idx):
-    features = self.features[idx]
-    target = self.target[idx]
-    result = {'meta': features, 'target': target}
-    return result
-
-class img_Dataset(Dataset):
-  """
-  Class for handling images and feature related to engagement
-  """
-  def __init__(self, target, image_path, transform_img=None, transform_target=None):
-    self.target = torch.tensor(target)
-    self.image_path = image_path
-    self.transform_img = transform_img
-    self.transform_target = transform_target
-
-  def __len__(self):
-    return len(self.target)
-
-  def __getitem__(self, idx):
-#    print(type(self.image_path))
-#    print(self.image_path.shape)
-#    print(self.image_path[idx])
-    image = cv2.imread(self.image_path[idx])
-    target = self.target[idx]
-    if self.transform_img is not None:
-      image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-      pil_image = Image.fromarray(image_rgb)
-      image_transformed = self.transform_img(pil_image)
-    if self.transform_target is not None:
-      target = self.transform_target(target)
-    result = {'img': image_transformed, 'target': target}
-    return result
-
-class img_meta_Dataset(Dataset):
-  """
-  Class for handling metadata features, images and feature related to engagement
-  """
-  def __init__(self, engagement, image_path, features, transform=None):
-    self.engagement = torch.tensor(engagement.values)
-    self.features = torch.tensor(features.values, dtype=torch.float32)
-    self.image_path = image_path
-    self.transform = transform
-
-  def __len__(self):
-    return len(self.engagement)
-
-  def __getitem__(self, idx):
-    image = cv2.imread(os.path.join(self.image_path.iloc[idx]))
-    if self.transform is not None:
-      image = self.transform(image)
-    engagement = self.engagement[idx]
-    features = self.features[idx]
-
-    result = {'img': image, 'meta': features, 'target': engagement}
-    return result
-
-class img_meta_resnet_Dataset(Dataset):
-  """
-  Class for handling metadata features, images for ResNet 
-  and feature related to engagement
-  """
-  def __init__(self, engagement, image_path, features, transform=None):
-    self.engagement = torch.tensor(engagement.values)
-    self.features = torch.tensor(features.values, dtype=torch.float32)
-    self.image_path = image_path
-    self.transform = transform
-
-  def __len__(self):
-    return len(self.engagement)
-
-  def __getitem__(self, idx):
-    image = Image.open(os.path.join(self.image_path.iloc[idx]))
-    if self.transform is not None:
-      image = self.transform(image)
-    engagement = self.engagement[idx]
-    features = self.features[idx]
-
-    result = {'img': image, 'meta': features, 'target': engagement}
-    return result
+class multimodal3_Dataset(Dataset): 
+    """
+    Class for handling images related to engagement
+    """
+    def __init__(self, df, transform_images, transform_embeddings, transform_metadata, transform_target):
+        self.data = df
+        self.transform_images = transform_images
+        self.metadata  = transform_metadata.transform(self.data)
+        self.embeddings  = transform_embeddings.transform(self.data)
+        self.target  = transform_target.transform(self.data)
+    
+    def __len__(self):
+        return len(self.target)
+    
+    def __getitem__(self, idx):
+        # images
+        images_transformed = self.transform_images.transform(self.data.iloc[idx])
+        # embeddings 
+        embeddings = torch.tensor(self.embeddings[idx], dtype=torch.float32)
+        # metadata
+        metadata = torch.tensor(self.metadata[idx], dtype=torch.float32)
+        # target
+        target = torch.tensor(self.target[idx], dtype=torch.long)
+        # result
+        result = {'images': images_transformed, 'embeddings': embeddings, 'metadata': metadata, 'target': target}
+        return result
+        

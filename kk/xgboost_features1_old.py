@@ -40,7 +40,7 @@ def main():
     print(f'Train dataset: {df_train.shape[0]}')
     print(f'Test dataset: {df_test.shape[0]}')
     
-    # preprocess features Imputation/Encoding (target + explanatory)
+    # preprocess features Imputation/Encoding/Transformation (target + explanatory)
     preproc_target = TargetFeature(col1_name='Visits', col2_name='Likes_Dislikes')
     preproc_explanatory = ColumnTransformer(
         transformers=[

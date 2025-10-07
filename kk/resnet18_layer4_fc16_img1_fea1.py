@@ -11,11 +11,15 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torch.nn import CrossEntropyLoss
 import torchvision.transforms as transforms
+import torchvision.models as models
 
+from utilsClass import TargetFeature, MultiLabelBinarizerWrapper
+from sklearn.compose import ColumnTransformer
 from utilsClass import TargetFeature
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from utils import process_data, set_random_seed
-from utilsDataset import img_Dataset
-from utilsNN import CNN_pretrain, ResNet18_pretrained
+from utilsDataset import img_meta_Dataset
+from utilsNN import dual_ResNet18_layer4_fc16
 #from utilsTrain import train_model
 from utilsTrain import Train, train_epoch, eval_epoch
 
@@ -43,16 +47,35 @@ def main():
     print(f'Train dataset: {df_train.shape[0]}')
     print(f'Test dataset: {df_test.shape[0]}')
     
+    # preprocess data Imputation/Encoding/Transformation
     preproc_target = TargetFeature(col1_name='Visits', col2_name='Likes_Dislikes')
+    preproc_explanatory = ColumnTransformer(
+        transformers=[
+            ('numerical', StandardScaler(), ['xps', 'locationLon', 'locationLat', 'NumTags']),
+            ('categories', MultiLabelBinarizerWrapper(), ['categories']), 
+            ('tier',OneHotEncoder(sparse_output=False),['tier'])
+        ],
+        remainder="drop"
+    )
+
     
-    X_train = np.array(df_train['main_image_path'])
-    y_train = preproc_target.fit_transform(df_train)
-    X_test = np.array(df_test['main_image_path'])
-    y_test = preproc_target.transform(df_test)
+    preproc_explanatory.fit(df_train)
+    preproc_target.fit(df_train)
+    
+    #X_train = preproc_explanatory.fit_transform(df_train)
+    #y_train = preproc_target.fit_transform(df_train)
+    #X_test = preproc_explanatory.transform(df_test)
+    #y_test = preproc_target.transform(df_test)
+    
+    #X_train = np.array(df_train['main_image_path'])
+    #y_train = preproc_target.fit_transform(df_train)
+    #X_test = np.array(df_test['main_image_path'])
+    #y_test = preproc_target.transform(df_test)
     
     # split train data into train and validation datasets
-    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size = 0.2, random_state = 42)
-    
+    #X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size = 0.2, random_state = 42)
+    df_train, df_val = train_test_split(df_train, test_size = 0.2, random_state = 42)
+
     transform_ResNet18 = transforms.Compose([
                 transforms.Resize(256),
                 transforms.CenterCrop(224),
@@ -61,14 +84,17 @@ def main():
                                    std=[0.229, 0.224, 0.225])
             ])
     
-    train_dataset = img_Dataset(y_train, X_train, transform_img = transform_ResNet18)
-    val_dataset = img_Dataset(y_val, X_val, transform_img = transform_ResNet18)
-
+    #train_dataset = img_meta_Dataset(y_train, X_train, transform_img = transform_ResNet18)
+    #val_dataset = img_meta_Dataset(y_val, X_val, transform_img = transform_ResNet18)
+    train_dataset = img_meta_Dataset(df_train, transform_img = transform_ResNet18, transform_meta = preproc_explanatory, transform_target = preproc_target)
+    val_dataset = img_meta_Dataset(df_val, transform_img = transform_ResNet18, transform_meta = preproc_explanatory, transform_target = preproc_target)
+    
     ## Configure optimization
     def objective(trial):
     
         # hyperparameters to optimize
-        learning_rate = trial.suggest_float("learning_rate", 1e-3, 1e-1, log=True) # To optimize
+        dropout_rate = trial.suggest_float("dropout_rate", 0.1, 1.0) 
+        learning_rate = trial.suggest_float("learning_rate", 5e-4, 5e-1, log=True) # To optimize
 #        batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]) # To optimize
         batch_size = 2**trial.suggest_int("batch_size_exp2", 4, 9) # To optimize
         # name run CONFIG!!!
@@ -77,18 +103,12 @@ def main():
         # Neural network configuration
         num_epochs = 10 
         criterion = CrossEntropyLoss() 
-        model = CNN_pretrain(ResNet18_pretrained) # Optimized parameter
+        model = dual_ResNet18_layer4_fc16(dropout_rate) # Optimized parameter
         optimizer = Adam(model.parameters(), lr=learning_rate) # Optimized parameter
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True) # Optimized parameter
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False) # Optimized parameter
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        # TODO Create a object from class Train
-        # TODO Use this object to save results and create final dictionary
-        #train_result = {'train_losses': [], 
-        #                'train_accs': [], 
-        #                'val_losses': [], 
-        #                'val_accs': []}
         train_results = Train()
         model.to(device)
 
@@ -97,13 +117,9 @@ def main():
             loss, acc , lr = train_epoch(model, device, train_loader, criterion, optimizer)
             val_loss, val_acc = eval_epoch(model, device, val_loader, criterion)
             train_results.update(loss, acc, val_loss, val_acc)
-            #train_losses.append(loss)
-            #train_accs.append(acc)
-            #val_losses.append(val_loss)
-            #val_accs.append(val_acc)
 
             # Report to pruner
-            trial.report(val_accs, step = epoch)
+            trial.report(val_acc, step = epoch)
 
             # Check for pruning
             if trial.should_prune():
@@ -112,14 +128,6 @@ def main():
                 print(f"Trial {trial.number} pruned at epoch {epoch}")
                 raise optuna.TrialPruned()
             
-        #train_result = {'train_losses':train_losses, 
-        #                'train_accs': train_accs, 
-        #                'val_losses': val_losses, 
-        #                'val_accs': val_accs}
-        
-        ## train/validate model
-        #train_results = train_model(model, criterion, optimizer, num_epochs,
-        #                            train_loader, val_loader, device, verbose = False)
         
         # save metrics
         final_train_results = train_results.to_dict()
@@ -132,7 +140,7 @@ def main():
     study = optuna.create_study(
         direction='maximize',
         storage='sqlite:///optuna_DL_exercise.db',  # Persistent storage
-        study_name='resnet18_pretrained_images1_pruner',
+        study_name='resnet18_layer4_fc16_img1_fea1',
         sampler=optuna.samplers.TPESampler(
             n_startup_trials = 10,
             n_ei_candidates = 24,
@@ -145,14 +153,26 @@ def main():
     )
 
     # set user_attr CONFIG!!!
-    study.set_user_attr('script', 'resnet18_pretrained_images1_pruner.py')
+    study.set_user_attr('script', 'resnet18_layer4_fc16_img1_fea1.py')
     study.set_user_attr('dataset', 'poi_dataset.csv')
-    study.set_user_attr('model_architecture', 'ResNet18 pretrained')
+    study.set_user_attr('model_architecture', 'Ensemble model: ResNet18 pretrained optimization for layer4 (images) + FCNN (metadata)')
     study.set_user_attr('split_dataset', '80(80train/20val)20test/seed42')
-    study.set_user_attr('description', 'ResNet18 with pretrained weigths. Last layer changed to two levels classification. Pruner methos is implemented')
+    study.set_user_attr('description', 'Emsemble model with multi-modal input. Images: ResNet18 with optimization for layer4. Metadata: FCNN. Feature concatenation Last layer changed to output 16 to be equilibrated with FC neuronal network for metadata')
     study.set_user_attr('score', 'accuracy')
     study.set_user_attr('target', 'mean value for MinMaxScaler(Visits) and MinMaxScaler(Likes_Dislikes)')
     study.set_user_attr('img_transformation', 'ResNet transformation')
+    study.set_user_attr('numerical_transformer', {
+        'type': 'StandardScaler', 
+        'columns': ['xps', 'locationLon', 'locationLat', 'NumTags'], 
+    })
+    study.set_user_attr('categories_transformer', {
+        'type': 'MultiLabelBinarizerWrapper', 
+        'columns': ['categories'], 
+    })
+    study.set_user_attr('tier_transformer', {
+        'type': 'OneHotEncoder', 
+        'columns': ['tier'], 
+    })
     study.set_user_attr('numepochs', 10)
     study.set_user_attr('criterion', 'CrossEntropyLoss')
     study.set_user_attr('optimizer', 'Adam')

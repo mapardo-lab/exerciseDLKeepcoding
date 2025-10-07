@@ -22,12 +22,39 @@ def info_studies_from_storage(db_url):
         study = optuna.load_study(study_name=study_summary.study_name, storage=storage)
         study_info = {
             'study_name': study.study_name,
-            'best_score': study.best_value
+            'best_score': study.best_value,
+            'description': study.user_attrs['comments']
         }
         
         studies_data.append(study_info)
     
     return pd.DataFrame(studies_data)
+    
+def info_trials_from_study(trials, extended='False'):
+    """
+    Get a dataframe with info from all trials of a study
+    """
+    data = []
+    for trial in trials:
+        # Get run name, default to 'unknown' if not present
+        run_name = trial.user_attrs.get('run', None)
+        
+        # Create row with run name and all parameters
+        row = {'run': run_name,
+               'number': trial.number,
+               'state': trial.state,
+               'values': trial.values,
+               'datetime_start': trial.datetime_start,
+               'datetime_complete': trial.datetime_complete
+              }
+        # Add all parameters from this trial
+        for param_name, param_value in trial.params.items():
+            row[param_name] = param_value
+        # Add all distributions from this trial
+        for param_name, distribution in trial.distributions.items():
+            row[f"dist_{param_name}"] = distribution
+        data.append(row)
+    return pd.DataFrame(data)
 
 def user_attr_study(study):
     """
@@ -49,39 +76,12 @@ def remove_study_from_storage(storage_url, study_name):
     except KeyError:
         print(f"Study '{study_name}' not found")  
         
-def get_info_trials(trials):
-    """
-    Get a dataframe with info from all trials of a study
-    """
-    data = []
-    for trial in trials:
-        # Get run name, default to 'unknown' if not present
-        run_name = trial.user_attrs.get('run', None)
-        
-        # Create row with run name and all parameters
-        row = {'run': run_name,
-               'datetime_start': trial.datetime_start,
-               'datetime_complete': trial.datetime_complete,
-               'number': trial.number,
-               'state': trial.state,
-               'values': trial.values
-              }
-        
-        # Add all parameters from this trial
-        for param_name, param_value in trial.params.items():
-            row[param_name] = param_value
-        # Add all distributions from this trial
-        for param_name, distribution in trial.distributions.items():
-            row[f"dist_{param_name}"] = distribution
-        data.append(row)
-    return pd.DataFrame(data)
 
 def get_datetime_runs(df):
     """
     Generate a summary of trial runs with datetime information.
     """
     summary_datetime = df.groupby('run').agg(
-        num_trials=('run', 'count'),  # or use 'size'
         datetime_start=('datetime_start', 'min'),
         datetime_complete=('datetime_complete', 'max')
     ).reset_index()
@@ -93,13 +93,16 @@ def get_score_runs(df):
     """
     Generate a summary of trial runs with score statistics for completed trials.
     """
+    summary_runs = df.groupby('run').agg(
+        num_trials=('run', 'count')).reset_index()
     df_complete = df[df['state'] == 1].copy()
     df_complete['score'] = df_complete['values'].apply(lambda x: x[0] if len(x) > 0 else None)
     summary_score = df_complete.groupby('run').agg(
-        complete_trials=('run', 'count'),  # or use 'size'
+        completed_trials=('run', 'count'),  # or use 'size'
         best_score=('score', 'max'),
     ).reset_index()
-    return summary_score
+    df_output = pd.merge(summary_runs, summary_score, on='run')
+    return df_output
 
 def get_range_params_runs(df, params):
     """
@@ -137,20 +140,24 @@ def get_params_trials(trials):
         params.update(trial.params.keys())
     return params
     
-def get_info_runs(trials):
+def info_runs_from_study(trials, extended = False):
     """
     Aggregate trial information into a comprehensive run summary DataFrame.
     """
-    df = get_info_trials(trials)
-    df_datetime = get_datetime_runs(df)
+    df = info_trials_from_study(trials)
     df_score = get_score_runs(df)
-    params = get_params_trials(trials)
-    df_range_params = get_range_params_runs(df, params)
-    df_dist_params = get_dist_params_runs(df, params)
-    df_merged = pd.merge(df_datetime, df_score, on = 'run')
-    df_merged = pd.merge(df_merged, df_dist_params, on = 'run')
-    df_merged = df_merged.sort_values('datetime_start')
-    return df_merged
+    if extended:
+        df_datetime = get_datetime_runs(df)
+        params = get_params_trials(trials)
+        df_range_params = get_range_params_runs(df, params)
+        df_dist_params = get_dist_params_runs(df, params)
+        df_merged = pd.merge(df_score, df_datetime, on = 'run')
+        df_merged = pd.merge(df_merged, df_dist_params, on = 'run')
+        df_merged = df_merged.sort_values('datetime_start')
+        df_output = df_merged
+    else:
+        df_output = df_score
+    return df_output
     
 def plot_slice(study, params=[]):
     """
@@ -160,7 +167,7 @@ def plot_slice(study, params=[]):
     trials = study.trials
     if len(params) == 0:
         params = get_params_trials(trials)
-    df = get_info_trials(trials)
+    df = info_trials_from_study(trials)
     df_complete = df[df['state'] == 1].copy()
     df_complete['score'] = df_complete['values'].apply(lambda x: x[0] if len(x) > 0 else None)
 

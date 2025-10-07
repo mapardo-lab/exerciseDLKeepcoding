@@ -15,8 +15,8 @@ import torchvision.transforms as transforms
 from utilsClass import TargetFeature
 from utils import process_data, set_random_seed
 from utilsDataset import img_Dataset
-from utilsNN import CNN_pretrain, ResNet18_pretrained
-from utilsTrain import train_model
+from utilsNN import CNN_pretrain, ResNet18_layer4_class2
+from utilsTrain import Train, train_epoch, eval_epoch
 
 def main():
     ## Check if run_name argument is provided
@@ -25,13 +25,13 @@ def main():
         print("Usage: script.py <run_name>")
         sys.exit(1)
     run_name = sys.argv[1]
-    
+
     ## Random reproducibility
     set_random_seed()
     
     ## Load dataset
     poi_data = pd.read_csv("poi_dataset.csv")
-
+    
     ## Prepare data to train/validate model
     # simple process features + create new features
     poi_data_processed = process_data(poi_data)
@@ -42,6 +42,7 @@ def main():
     print(f'Train dataset: {df_train.shape[0]}')
     print(f'Test dataset: {df_test.shape[0]}')
     
+    # preprocess features Imputation/Encoding/Transformation (target + explanatory)
     preproc_target = TargetFeature(col1_name='Visits', col2_name='Likes_Dislikes')
     
     X_train = np.array(df_train['main_image_path'])
@@ -52,7 +53,19 @@ def main():
     # split train data into train and validation datasets
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size = 0.2, random_state = 42)
     
-    transform_ResNet18 = transforms.Compose([
+    transform_ResNet18_train = transforms.Compose([
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomVerticalFlip(p=0.2),
+                transforms.RandomRotation(degrees=15),
+                transforms.ColorJitter(0.2, 0.2, 0.2, 0.1),
+                transforms.Resize(256),
+                transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                                   std=[0.229, 0.224, 0.225])
+    ])
+    
+    transform_ResNet18_val = transforms.Compose([
                 transforms.Resize(256),
                 transforms.CenterCrop(224),
                 transforms.ToTensor(),
@@ -60,54 +73,75 @@ def main():
                                    std=[0.229, 0.224, 0.225])
             ])
     
-    train_dataset = img_Dataset(y_train, X_train, transform_img = transform_ResNet18)
-    val_dataset = img_Dataset(y_val, X_val, transform_img = transform_ResNet18)
-
+    train_dataset = img_Dataset(y_train, X_train, transform_img = transform_ResNet18_train)
+    val_dataset = img_Dataset(y_val, X_val, transform_img = transform_ResNet18_val)
+    
     ## Configure optimization
     def objective(trial):
     
         # hyperparameters to optimize
         learning_rate = trial.suggest_float("learning_rate", 5e-4, 5e-1, log=True) # To optimize
-        batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]) # To optimize
+        batch_size = 2**trial.suggest_int("batch_size_exp2", 5, 9) # To optimize
         # name run CONFIG!!!
         trial.set_user_attr('run', run_name)
     
         # Neural network configuration
         num_epochs = 10 
         criterion = CrossEntropyLoss() 
-        model = CNN_pretrain(ResNet18_pretrained) # Optimized parameter
+        model = CNN_pretrain(ResNet18_layer4_class2) # Optimized parameter
         optimizer = Adam(model.parameters(), lr=learning_rate) # Optimized parameter
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True) # Optimized parameter
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False) # Optimized parameter
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
-        # train/validate model
-        train_results = train_model(model, criterion, optimizer, num_epochs,
-                                    train_loader, val_loader, device, verbose = False)
+        train_results = Train()
+        model.to(device)
+
+        for epoch in range(num_epochs):
+            loss, acc , lr = train_epoch(model, device, train_loader, criterion, optimizer)
+            val_loss, val_acc = eval_epoch(model, device, val_loader, criterion)
+            train_results.update(loss, acc, val_loss, val_acc)
+            
+            # Report to pruner
+            trial.report(val_acc, step = epoch)
+
+            # Check for pruning
+            if trial.should_prune():
+                # save metrics
+                trial.set_user_attr('train_results', train_results.to_dict())
+                print(f"Trial {trial.number} pruned at epoch {epoch}")
+                raise optuna.TrialPruned()
+            
+    
         # save metrics
-        trial.set_user_attr('train_results', train_results)
+        final_train_results = train_results.to_dict()
+        trial.set_user_attr('train_results', final_train_results)
     
         # return score
-        return train_results['val_accs'][-1]
+        return final_train_results['val_accs'][-1]
 
     # create/load study
     study = optuna.create_study(
         direction='maximize',
-        storage='sqlite:///optuna_DL_exercise.db',  # Persistent storage
-        study_name='resnet18_pretrained_images1',
+        storage='sqlite:///optuna_DL_exercise.db', 
+        study_name='resnet18_layer4_images1_da2', ## study_name CONFIG!!!
         sampler=optuna.samplers.TPESampler(
             n_startup_trials = 10,
             n_ei_candidates = 24,
             seed=42),
+        pruner = optuna.pruners.MedianPruner(
+            n_startup_trials = 5,
+            n_warmup_steps = 3
+        ),
         load_if_exists=True  # Continue if study exists
     )
 
     # set user_attr CONFIG!!!
-    study.set_user_attr('script', 'resnet18_pretrained_images1.py')
+    study.set_user_attr('script', 'resnet18_layer4_images1_da2.py')
     study.set_user_attr('dataset', 'poi_dataset.csv')
-    study.set_user_attr('model_architecture', 'ResNet18 pretrained')
+    study.set_user_attr('model_architecture', 'ResNet18 pretrained optimization for layer4')
     study.set_user_attr('split_dataset', '80(80train/20val)20test/seed42')
-    study.set_user_attr('description', 'ResNet18 with pretrained weigths. Last layer changed to two levels classification')
+    study.set_user_attr('description', 'ResNet18 with pretrained weigths with optimization for layer4. Last layer changed to two levels classification. Strong data augmentation.')
     study.set_user_attr('score', 'accuracy')
     study.set_user_attr('target', 'mean value for MinMaxScaler(Visits) and MinMaxScaler(Likes_Dislikes)')
     study.set_user_attr('img_transformation', 'ResNet transformation')
@@ -115,7 +149,7 @@ def main():
     study.set_user_attr('criterion', 'CrossEntropyLoss')
     study.set_user_attr('optimizer', 'Adam')
     
-    ## Run trials
+    # Run trials
     study.optimize(objective, n_trials=10)
     print(f"Completed {len(study.trials)} trials")
     print(f"Best score: {study.best_value:.4f}")
