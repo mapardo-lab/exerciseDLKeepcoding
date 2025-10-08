@@ -14,12 +14,13 @@ def plot_density(df: pd.DataFrame, features: list , n_rows: int, n_cols: int):
     n_rows: number rows for the plot
     n_cols: number columns for the plot
   """
-  plt.figure(figsize=(8 * n_cols, 4 * n_rows))  # Dynamic figure size
+  plt.figure(figsize=(6 * n_cols, 4 * n_rows))  # Dynamic figure size
   for i, feature in enumerate(features,start=1):
       plt.subplot(n_rows, n_cols, i)
       sns.kdeplot(df[feature], fill=True, color='skyblue', alpha=0.5)
       plt.xlabel(feature)
       plt.ylabel('Density')
+      plt.ticklabel_format(axis='both', style='sci', scilimits=(-3, 4))
   plt.show()
 
 def plot_bars(df: pd.DataFrame, features: list , n_rows: int, n_cols: int):
@@ -32,7 +33,7 @@ def plot_bars(df: pd.DataFrame, features: list , n_rows: int, n_cols: int):
     n_rows: number rows for the plot
     n_cols: number columns for the plot
   """
-  plt.figure(figsize=(6 * n_cols, 4 * n_rows))  # Dynamic figure size
+  plt.figure(figsize=(5 * n_cols, 4 * n_rows))  # Dynamic figure size
   for i, feature in enumerate(features, start=1):
     counts = df[feature].value_counts()
     counts = counts.loc[sorted(counts.index)]

@@ -9,9 +9,9 @@ from sklearn.model_selection import train_test_split, cross_validate
 
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
-from utilsClass import TargetFeature, MultiLabelBinarizerWrapper
-from utils import process_data, set_random_seed, get_object_info, get_column_transformer_info
-from utilsDataset import features_Dataset
+from utilsFT import TargetFeature, MultiLabelBinarizerWrapper
+from utils import set_random_seed, get_object_info, get_column_transformer_info
+from utilsProc import process_data
 from sklearn.ensemble import RandomForestClassifier
 
 def main():

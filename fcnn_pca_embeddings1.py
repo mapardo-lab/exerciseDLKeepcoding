@@ -14,8 +14,9 @@ import torchvision.transforms as transforms
 import torchvision.models as models
 
 from sklearn.compose import ColumnTransformer
-from utilsClass import TargetFeature, EmbeddingText
-from utils import process_data, set_random_seed, get_object_info, get_column_transformer_info
+from utilsFT import TargetFeature, EmbeddingText
+from utils import set_random_seed, get_object_info, get_column_transformer_info
+from utilsProc import process_data
 from utilsDataset import features_Dataset
 from utilsNN import FCNN_pca
 from utilsTrain import Train, train_epoch, eval_epoch

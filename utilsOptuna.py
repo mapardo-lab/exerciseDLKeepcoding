@@ -255,3 +255,14 @@ def plot_train_nn(trial):
     val_accs = df['val_accs']
     num_epochs = df.shape[0]
     plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs, test_acc=None)
+
+def best_trial_scores_ML(study): 
+    """
+    Retrieves and computes the performance metrics from the best trial in an Optuna study, 
+    returning the model name along with the mean training and validation scores rounded 
+    to three decimal places for concise evaluation. 
+    """
+    model = study.best_trial.user_attrs['model']['name']
+    train_score = round(statistics.mean(study.best_trial.user_attrs['train_score']), 3)
+    val_score = round(statistics.mean(study.best_trial.user_attrs['val_score']), 3)
+    return model, train_score, val_score
