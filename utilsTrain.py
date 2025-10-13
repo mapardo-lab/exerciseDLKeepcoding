@@ -90,7 +90,6 @@ def get_results(loss, y_true, y_pred, scoring, type):
   """
   results = {type + '_loss': loss}
   for score_name, score_func in scoring.items():
-    print(f'{score_name} {score_func(y_true, y_pred)}')
     results[type + '_' + score_name] = score_func(y_true, y_pred)
   return results
 
@@ -179,42 +178,30 @@ def train_model(model, criterion, optimizer, num_epochs, trainloader, valloader,
                 device, testloader=None, l1_lambda = None, scheduler = None, verbose = True):
   """
   Train model and plot metrics from training
-
-  Args:
-    model: Neural network model to train
-    criterion: Objective loss function
-    optimizer: Parameter optimizer
-    num_epochs: Number of epochs for training
-    trainloader: Training data loader
-    valloader: Validation data loader
-    device: Training device ('cuda' or 'cpu')
-    testloader: Test data loader
-    l1_lambda: Parameter L1 for regularization
-    scheduler: LR scheduler instance
   """
   result = None
   model.to(device)
 
-  train_losses, train_accs, val_losses, val_accs = [], [], [], []
+#  train_losses, train_accs, val_losses, val_accs = [], [], [], []
   for epoch in range(num_epochs):
       loss, acc , lr = train_epoch(model, device, trainloader, criterion, optimizer, l1_lambda=l1_lambda, scheduler=scheduler)
-      val_loss, val_acc = eval_epoch(model, device, valloader, criterion)
+#      val_loss, val_acc = eval_epoch(model, device, valloader, criterion)
       train_losses.append(loss)
       train_accs.append(acc)
-      val_losses.append(val_loss)
-      val_accs.append(val_acc)
-      if verbose:
-        print(f'Epoch {epoch+1}, Loss: {loss}, Acc: {acc}, Val Loss: {val_loss}, Val Acc: {val_acc}, LR: {lr}')
+#      val_losses.append(val_loss)
+#      val_accs.append(val_acc)
+#      if verbose:
+#        print(f'Epoch {epoch+1}, Loss: {loss}, Acc: {acc}, Val Loss: {val_loss}, Val Acc: {val_acc}, LR: {lr}')
   if testloader is not None:
     accuracy = evaluate_model(model, testloader, device)
     #accuracy100 = accuracy*100
     plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs, test_acc = accuracy) 
-  elif verbose:
-    plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs) 
-  else:
-    result = {'train_losses':train_losses, 
-              'train_accs': train_accs, 
-              'val_losses': val_losses, 
-              'val_accs': val_accs}
+#  elif verbose:
+#    plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs) 
+#  else:
+#    result = {'train_losses':train_losses, 
+#              'train_accs': train_accs, 
+#              'val_losses': val_losses, 
+#              'val_accs': val_accs}
 
   return result

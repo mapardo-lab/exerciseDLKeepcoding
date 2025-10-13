@@ -351,7 +351,7 @@ def optuna_results(study):
   # print best results
   print("Best trial:")
   trial = study.best_trial
-  importances = get_param_importances(study)
+  #importances = get_param_importances(study)
 
   print("  Value: ", trial.value)
   print("  Params: ")

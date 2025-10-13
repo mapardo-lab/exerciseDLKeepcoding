@@ -43,7 +43,7 @@ def main():
     
     # split data into train and test datasets
     test_size_test = 0.2
-    df_train, df_test = train_test_split(poi_data_processed, test_size = test_size_test) 
+    df_train, df_test = train_test_split(poi_data_processed, test_size = test_size_test, random_state = 42) 
     print(f'Number of samples')
     print(f'Train dataset: {df_train.shape[0]}')
     print(f'Test dataset: {df_test.shape[0]}')
@@ -64,7 +64,7 @@ def main():
     
     # split train data into train and validation datasets
     test_size_val = 0.2
-    df_train, df_val = train_test_split(df_train, test_size = test_size_val) 
+    df_train, df_val = train_test_split(df_train, test_size = test_size_val, random_state = 42) 
 
     # Dataset
     train_dataset = multimodal3_Dataset(df_train, transform_images = proc_images, transform_embeddings = proc_embeddings, transform_metadata = proc_metadata)
