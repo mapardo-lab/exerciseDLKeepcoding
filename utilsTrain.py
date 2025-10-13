@@ -90,6 +90,7 @@ def get_results(loss, y_true, y_pred, scoring, type):
   """
   results = {type + '_loss': loss}
   for score_name, score_func in scoring.items():
+    print(f'{score_name} {score_func(y_true, y_pred)}')
     results[type + '_' + score_name] = score_func(y_true, y_pred)
   return results
 

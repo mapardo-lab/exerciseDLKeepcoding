@@ -87,9 +87,9 @@ def main():
     # scores output
     scoring = {
         'sensitivity': build_scorer(recall_score, pos_label=1),
-        'precision': build_scorer(precision_score, pos_label=1),
+        'precision': build_scorer(precision_score, pos_label=1, zero_division = 0),
         'f1_score': build_scorer(f1_score, pos_label=1),
-        'macro_precision': build_scorer(precision_score, average='binary')
+        'macro_precision': build_scorer(precision_score, average='binary', zero_division = 0)
     }
 
     # objetive function DL
