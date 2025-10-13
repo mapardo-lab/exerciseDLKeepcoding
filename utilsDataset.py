@@ -1,14 +1,10 @@
 import torch
 import numpy  as np  
-import pandas as pd
 from torch.utils.data import Dataset
-import cv2
-from PIL import Image
-import os
 
 class features_Dataset(Dataset): 
     """
-    Class for handling feature related to engagement
+    Class for handling features and target
     """
     def __init__(self, df, transform_features, transform_target = None):
         self.data = df
@@ -33,7 +29,7 @@ class features_Dataset(Dataset):
 
 class images_Dataset(Dataset): 
     """
-    Class for handling images related to engagement
+    Class for handling images and target
     """
     def __init__(self, df, transform_images, transform_target=None):
         self.data = df
@@ -57,7 +53,7 @@ class images_Dataset(Dataset):
 
 class multimodal3_Dataset(Dataset): 
     """
-    Class for handling images related to engagement
+    Class for handling images, metadata, embeddings and target
     """
     def __init__(self, df, transform_images, transform_embeddings, transform_metadata, transform_target=None):
         self.data = df

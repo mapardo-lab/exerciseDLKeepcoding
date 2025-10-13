@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
-import numpy  as np  
 import pandas as pd
 import seaborn as sns
-import optuna
 
 def plot_density(df: pd.DataFrame, features: list , n_rows: int, n_cols: int):
   """

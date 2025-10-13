@@ -1,7 +1,6 @@
 import numpy  as np  
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import optuna
 import os
 import pickle
@@ -12,6 +11,9 @@ from utilsTrain import plot_training_curves
 from utilsTrain import ResultTrain, train_epoch, eval_epoch
 
 class ObjectiveFunction():
+    """
+    Base class for defining objective functions with configurable hyperparameter search spaces.
+    """
     def __init__(self, model, fixed_params, search_space, scoring, score, run_name):
         self.model = model
         self.fixed_params = fixed_params
@@ -61,6 +63,9 @@ class ObjectiveFunction():
         return optimizable_params
 
 class ObjectiveFunctionML(ObjectiveFunction):
+    """
+    Objective function for machine learning models using cross-validation for hyperparameter optimization.
+    """
     def __init__(self, X, y, model, fixed_params, search_space, scoring, score, cv, run_name):
         super().__init__(model, fixed_params, search_space, scoring, score, run_name)
         self.X = X
@@ -87,6 +92,9 @@ class ObjectiveFunctionML(ObjectiveFunction):
         return score
 
 class ObjectiveFunctionDL(ObjectiveFunction):
+    """
+    Objective function for deep learning models with training loop and pruning capabilities.
+    """
     def __init__(self, train_dataset, val_dataset, model, criterion, optimizer, num_epochs, device, fixed_params, search_space, scoring, score, run_name):
         super().__init__(model, fixed_params, search_space, scoring, score, run_name)
         self.train_dataset = train_dataset
@@ -142,6 +150,9 @@ class ObjectiveFunctionDL(ObjectiveFunction):
         return test_results['test_' + self.score]
 
 def create_study(study_params, user_attr):
+    """
+    Creates and configures an Optuna study with specified parameters and user attributes.
+    """
     study = optuna.create_study(**study_params)
     for attr in user_attr:
         study.set_user_attr(attr[0],attr[1])
@@ -351,26 +362,6 @@ def optuna_results(study):
   #for key, value in trial.params.items():
   #  print(f"    {key}:\t{value:.5f}\t\t{importances[key]:.2f}")
 
-def optuna_init(sampler, outputdir, study_id):
-  """
-  Initializes an Optuna study for hyperparameter optimization, ensuring a clean start by removing
-  any existing study with the same name. The study is persisted in an SQLite database for
-  potential resumption of optimization.
-  """
-  try:
-    # remove study if exists
-    optuna.delete_study(study_name = study_id + "_optimization", 
-                        storage=os.path.join("sqlite:///", 
-                        outputdir, study_id + "_study.sqlite3"))
-  except:
-    pass
-
-  # build optuna study
-  study = optuna.create_study(study_name = study_id + "_optimization", direction="maximize",
-                            storage=os.path.join("sqlite:///", outputdir, study_id + "_study.sqlite3"),
-                            sampler=sampler)
-  return study
-
 def save_metrics_optuna(trial, results, outputdir):
   """
   Saves evaluation metrics from an Optuna trial to a pickle file and stores the file path
@@ -397,7 +388,7 @@ def plot_train_nn(trial):
 
 def best_trial_scores_ML(study, list_scores): 
     """
-    Retrieves and computes the performance metrics from the best trial in an Optuna study, 
+    Retrieves and computes the performance metrics from the best trial in an Optuna study (Machine Learning), 
     returning the model name along with the mean training and validation scores rounded 
     to three decimal places for concise evaluation. 
     """
@@ -411,7 +402,7 @@ def best_trial_scores_ML(study, list_scores):
 
 def best_trial_scores_DL(study, list_scores): 
     """
-    Retrieves and computes the performance metrics from the best trial in an Optuna study, 
+    Retrieves and computes the performance metrics from the best trial in an Optuna study (Deep Learning), 
     returning the model name along with the mean training and validation scores rounded 
     to three decimal places for concise evaluation. 
     """

@@ -31,8 +31,6 @@ def train_epoch(model: nn.Module, device: torch.device, train_loader: DataLoader
   """
   model.train()
   train_loss = 0
-  #correct = 0
-  #total = 0
   y_pred = np.array([])
   y_true = np.array([])
     
@@ -49,25 +47,10 @@ def train_epoch(model: nn.Module, device: torch.device, train_loader: DataLoader
     optimizer.step()
     train_loss += loss.item()
     _, predicted = output.max(1)
-#    total += data['target'].size(0)
-#    correct += predicted.eq(data['target']).sum().item()
-    # predicted
-    # data['target']
     y_true = np.concatenate([y_true, data['target'].cpu().numpy()])
     y_pred = np.concatenate([y_pred, predicted.cpu().numpy()])
 
-
-#  train_loss /= len(train_loader)
-#  train_acc = correct / total
-
-#  if scheduler is not None:
-#    scheduler.step()
-#    current_lr = scheduler.get_last_lr()[0]
-#    return train_loss, train_acc, current_lr
-#  else:
-#    return train_loss, train_acc, optimizer.param_groups[0]['lr']
   return get_results(train_loss, y_true, y_pred, scoring, 'train')
-
 
 def eval_epoch(model: nn.Module, device: torch.device, 
                val_loader: DataLoader, criterion, scoring):
@@ -102,6 +85,9 @@ def eval_epoch(model: nn.Module, device: torch.device,
   return get_results(val_loss, y_true, y_pred, scoring, 'test')
 
 def get_results(loss, y_true, y_pred, scoring, type):
+  """
+  Computes and returns a dictionary of evaluation metrics including loss and specified scoring functions.
+  """
   results = {type + '_loss': loss}
   for score_name, score_func in scoring.items():
     results[type + '_' + score_name] = score_func(y_true, y_pred)
@@ -170,49 +156,24 @@ def plot_training_curves(train_losses, val_losses, train_accs,
   plt.show()
     
 class ResultTrain:
-#    def __init__(self):
-#        """
-#        Initialize Train object with empty lists for losses and accuracies.
-#        """
-#        self.train_losses = []
-#        self.train_accs = []
-#        self.val_losses = []
-#        self.val_accs = []
-    def __init__(self, scoring):
-      """
-      Initialize Train object with empty lists for losses and accuracies.
-      """
-      self.results = {}
-      for score_name, _ in scoring.items():
-        self.results['test_loss'] = []
-        self.results['train_loss'] = []
-        self.results['test_' + score_name] = []
-        self.results['train_' + score_name] = []
+  """
+  Tracks and accumulates training and validation metrics throughout the training process.
+  """
+  def __init__(self, scoring):
+    """
+    Initialize Train object with empty lists for losses and accuracies.
+    """
+    self.results = {}
+    for score_name, _ in scoring.items():
+      self.results['test_loss'] = []
+      self.results['train_loss'] = []
+      self.results['test_' + score_name] = []
+      self.results['train_' + score_name] = []
 
-    def update(self, new_results):
-      for score_name, score in new_results.items():
-        self.results[score_name].append(score)
+  def update(self, new_results):
+    for score_name, score in new_results.items():
+      self.results[score_name].append(score)
     
-#    def update(self, train_loss, train_acc, val_loss, val_acc):
-#        """
-#        Add new training loss and accuracy values to the tracking lists.
-#        """
-#        self.train_losses.append(train_loss)
-#        self.train_accs.append(train_acc)
-#        self.val_losses.append(val_loss)
-#        self.val_accs.append(val_acc)
-    
-#    def to_dict(self):
-#        """
-#        Return training data as a dictionary.        
-#        """
-#        return {
-#            'train_losses': self.train_losses,
-#            'train_accs': self.train_accs,
-#            'val_losses': self.val_losses,
-#            'val_accs': self.val_accs
-#        }
-
 def train_model(model, criterion, optimizer, num_epochs, trainloader, valloader, 
                 device, testloader=None, l1_lambda = None, scheduler = None, verbose = True):
   """

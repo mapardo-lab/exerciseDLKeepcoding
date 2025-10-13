@@ -10,6 +10,12 @@ The metadata includes several variables related to the POI's engagement metrics.
 
 See **exerciseDL.pdf** or **exerciseDL.html** for detailed results.
 
+# Optuna framework
+
+A variety of models, including both classical machine learning and deep learning architectures, were evaluated. Hyperparameter optimization was performed using the Optuna library. The methodology was designed to streamline the optimization process by allowing for easy configuration of the search space and the scoring metric, with all results saved for subsequent analysis. This entire protocol ensured full traceability of all studies and experimental runs.
+
+
+
 # Reproducibility
 
 Create an environment with conda (version 25.1.1)

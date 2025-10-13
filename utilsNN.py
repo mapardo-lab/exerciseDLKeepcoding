@@ -1,6 +1,4 @@
 import torch
-import numpy  as np  
-import pandas as pd
 import torch.nn as nn
 from torchvision import models
 import torch.nn as nn
@@ -161,6 +159,9 @@ class FCNN_pca(nn.Module): #
         return x
         
 class ResNet18_pretrain(nn.Module):
+    """
+    Pre-trained ResNet-18 backbone for image classification
+    """
     def __init__(self, num_classes):
         super(ResNet18_pretrain, self).__init__()
         self.network = CommonBlocks.get_ResNet18_pre_classifier(num_classes)
@@ -171,6 +172,9 @@ class ResNet18_pretrain(nn.Module):
         return x 
 
 class ResNet18_layer4(nn.Module):
+    """
+    Fine-tunning ResNet-18 backbone for image classification
+    """
     def __init__(self, num_classes):
         super(ResNet18_layer4, self).__init__()
         self.network = CommonBlocks.get_ResNet18_layer4_classifier(num_classes)
@@ -216,49 +220,3 @@ class MultiModal3Class2(nn.Module):
         x = torch.cat((x_images, x_embeddings, x_metadata), dim = 1)
         x = self.classifier(x)
         return x
-
-        
-class CNN(nn.Module):
-  """
-  Convolutional Neural Network (CNN) with an 
-  - Convolutional layer for three input channels with 8 kernels (3x3) and padding 1.
-  Use batch normalization before apply a ReLU activation function. Max pooling and 
-  dropout are applied
-  - Global max and average pooling is applied
-  - 8 neuron fully-connected layer for the 16 output features from above steps
-  Batch normalization, ReLU activation function and dropout regularization are applied
-  - 3 neurons output layer
-  """
-  def __init__(self, dropout_rate):
-    super(CNN, self).__init__()
-
-    # First convolutional layer
-    self.convLayer1 = nn.Sequential(
-      nn.Conv2d(3, 8, 3, padding = 1),
-      nn.BatchNorm2d(8),
-      nn.ReLU(),
-      nn.MaxPool2d(2,2),
-      nn.Dropout(dropout_rate)
-    )
-
-    # Fully connected layer (classificator)
-    self.fcLayer1 = nn.Sequential(
-      nn.Linear(16, 8),
-      nn.BatchNorm1d(8),
-      nn.ReLU(),
-      nn.Dropout(dropout_rate),
-      nn.Linear(8, 3)
-    )
-
-    # Set global pooling (max/avg)
-    self.global_max_pool = nn.AdaptiveMaxPool2d(1) # torch.nn.AdaptiveMaxPool2d(output_size,...)
-    self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
-
-  def forward(self, data):
-    x = data['img'] 
-    x = self.convLayer1(x)
-    max_pooled = self.global_max_pool(x).squeeze()
-    avg_pooled = self.global_avg_pool(x).squeeze()
-    x = torch.cat((max_pooled, avg_pooled), dim=1)
-    x = self.fcLayer1(x)
-    return x 
