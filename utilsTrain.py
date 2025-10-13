@@ -10,53 +10,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
-
-def train_model(model, criterion, optimizer, num_epochs, trainloader, valloader, 
-                device, testloader=None, l1_lambda = None, scheduler = None, verbose = True):
-  """
-  Train model and plot metrics from training
-
-  Args:
-    model: Neural network model to train
-    criterion: Objective loss function
-    optimizer: Parameter optimizer
-    num_epochs: Number of epochs for training
-    trainloader: Training data loader
-    valloader: Validation data loader
-    device: Training device ('cuda' or 'cpu')
-    testloader: Test data loader
-    l1_lambda: Parameter L1 for regularization
-    scheduler: LR scheduler instance
-  """
-  result = None
-  model.to(device)
-
-  train_losses, train_accs, val_losses, val_accs = [], [], [], []
-  for epoch in range(num_epochs):
-      loss, acc , lr = train_epoch(model, device, trainloader, criterion, optimizer, l1_lambda=l1_lambda, scheduler=scheduler)
-      val_loss, val_acc = eval_epoch(model, device, valloader, criterion)
-      train_losses.append(loss)
-      train_accs.append(acc)
-      val_losses.append(val_loss)
-      val_accs.append(val_acc)
-      if verbose:
-        print(f'Epoch {epoch+1}, Loss: {loss}, Acc: {acc}, Val Loss: {val_loss}, Val Acc: {val_acc}, LR: {lr}')
-  if testloader is not None:
-    accuracy = evaluate_model(model, testloader, device)
-    #accuracy100 = accuracy*100
-    plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs, test_acc = accuracy) 
-  elif verbose:
-    plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs) 
-  else:
-    result = {'train_losses':train_losses, 
-              'train_accs': train_accs, 
-              'val_losses': val_losses, 
-              'val_accs': val_accs}
-
-  return result
-
 def train_epoch(model: nn.Module, device: torch.device, train_loader: DataLoader, 
-                criterion, optimizer, l1_lambda=None, scheduler=None):
+                criterion, optimizer, scoring, l1_lambda=None, scheduler=None):
   """
   Train neural network for one epoch and return the training metrics.
     
@@ -76,8 +31,10 @@ def train_epoch(model: nn.Module, device: torch.device, train_loader: DataLoader
   """
   model.train()
   train_loss = 0
-  correct = 0
-  total = 0
+  #correct = 0
+  #total = 0
+  y_pred = np.array([])
+  y_true = np.array([])
     
   for batch_idx, data in enumerate(train_loader):
     for key, value in data.items():
@@ -92,23 +49,28 @@ def train_epoch(model: nn.Module, device: torch.device, train_loader: DataLoader
     optimizer.step()
     train_loss += loss.item()
     _, predicted = output.max(1)
-    total += data['target'].size(0)
-    correct += predicted.eq(data['target']).sum().item()
+#    total += data['target'].size(0)
+#    correct += predicted.eq(data['target']).sum().item()
+    # predicted
+    # data['target']
+    y_true = np.concatenate([y_true, data['target'].cpu().numpy()])
+    y_pred = np.concatenate([y_pred, predicted.cpu().numpy()])
 
-  train_loss /= len(train_loader)
-  #train_acc = 100. * correct / total
-  train_acc = correct / total
 
-  if scheduler is not None:
-    scheduler.step()
-    current_lr = scheduler.get_last_lr()[0]
-    return train_loss, train_acc, current_lr
-  else:
-    return train_loss, train_acc, optimizer.param_groups[0]['lr']
+#  train_loss /= len(train_loader)
+#  train_acc = correct / total
+
+#  if scheduler is not None:
+#    scheduler.step()
+#    current_lr = scheduler.get_last_lr()[0]
+#    return train_loss, train_acc, current_lr
+#  else:
+#    return train_loss, train_acc, optimizer.param_groups[0]['lr']
+  return get_results(train_loss, y_true, y_pred, scoring, 'train')
 
 
 def eval_epoch(model: nn.Module, device: torch.device, 
-               val_loader: DataLoader, criterion):
+               val_loader: DataLoader, criterion, scoring):
   """
   Evaluates network model on validation data and returns metrics
     
@@ -124,8 +86,8 @@ def eval_epoch(model: nn.Module, device: torch.device,
   """
   model.eval()
   val_loss = 0
-  correct = 0
-  total = 0
+  y_pred = np.array([])
+  y_true = np.array([])
     
   with torch.no_grad():
     for data in val_loader:
@@ -135,14 +97,15 @@ def eval_epoch(model: nn.Module, device: torch.device,
       loss = criterion(output, data['target'])
       val_loss += loss.item()
       _, predicted = output.max(1)
-      total += data['target'].size(0)
-      correct += predicted.eq(data['target']).sum().item()
+      y_true = np.concatenate([y_true, data['target'].cpu().numpy()])
+      y_pred = np.concatenate([y_pred, predicted.cpu().numpy()])
+  return get_results(val_loss, y_true, y_pred, scoring, 'test')
 
-  val_loss /= len(val_loader)
-  #val_acc = 100. * correct / total
-  val_acc = correct / total
-
-  return val_loss, val_acc
+def get_results(loss, y_true, y_pred, scoring, type):
+  results = {type + '_loss': loss}
+  for score_name, score_func in scoring.items():
+    results[type + '_' + score_name] = score_func(y_true, y_pred)
+  return results
 
 def evaluate_model(model, testloader, device):
   """
@@ -206,32 +169,90 @@ def plot_training_curves(train_losses, val_losses, train_accs,
   plt.tight_layout()
   plt.show()
     
-class Train:
-    def __init__(self):
-        """
-        Initialize Train object with empty lists for losses and accuracies.
-        """
-        self.train_losses = []
-        self.train_accs = []
-        self.val_losses = []
-        self.val_accs = []
+class ResultTrain:
+#    def __init__(self):
+#        """
+#        Initialize Train object with empty lists for losses and accuracies.
+#        """
+#        self.train_losses = []
+#        self.train_accs = []
+#        self.val_losses = []
+#        self.val_accs = []
+    def __init__(self, scoring):
+      """
+      Initialize Train object with empty lists for losses and accuracies.
+      """
+      self.results = {}
+      for score_name, _ in scoring.items():
+        self.results['test_loss'] = []
+        self.results['train_loss'] = []
+        self.results['test_' + score_name] = []
+        self.results['train_' + score_name] = []
+
+    def update(self, new_results):
+      for score_name, score in new_results.items():
+        self.results[score_name].append(score)
     
-    def update(self, train_loss, train_acc, val_loss, val_acc):
-        """
-        Add new training loss and accuracy values to the tracking lists.
-        """
-        self.train_losses.append(train_loss)
-        self.train_accs.append(train_acc)
-        self.val_losses.append(val_loss)
-        self.val_accs.append(val_acc)
+#    def update(self, train_loss, train_acc, val_loss, val_acc):
+#        """
+#        Add new training loss and accuracy values to the tracking lists.
+#        """
+#        self.train_losses.append(train_loss)
+#        self.train_accs.append(train_acc)
+#        self.val_losses.append(val_loss)
+#        self.val_accs.append(val_acc)
     
-    def to_dict(self):
-        """
-        Return training data as a dictionary.        
-        """
-        return {
-            'train_losses': self.train_losses,
-            'train_accs': self.train_accs,
-            'val_losses': self.val_losses,
-            'val_accs': self.val_accs
-        }
+#    def to_dict(self):
+#        """
+#        Return training data as a dictionary.        
+#        """
+#        return {
+#            'train_losses': self.train_losses,
+#            'train_accs': self.train_accs,
+#            'val_losses': self.val_losses,
+#            'val_accs': self.val_accs
+#        }
+
+def train_model(model, criterion, optimizer, num_epochs, trainloader, valloader, 
+                device, testloader=None, l1_lambda = None, scheduler = None, verbose = True):
+  """
+  Train model and plot metrics from training
+
+  Args:
+    model: Neural network model to train
+    criterion: Objective loss function
+    optimizer: Parameter optimizer
+    num_epochs: Number of epochs for training
+    trainloader: Training data loader
+    valloader: Validation data loader
+    device: Training device ('cuda' or 'cpu')
+    testloader: Test data loader
+    l1_lambda: Parameter L1 for regularization
+    scheduler: LR scheduler instance
+  """
+  result = None
+  model.to(device)
+
+  train_losses, train_accs, val_losses, val_accs = [], [], [], []
+  for epoch in range(num_epochs):
+      loss, acc , lr = train_epoch(model, device, trainloader, criterion, optimizer, l1_lambda=l1_lambda, scheduler=scheduler)
+      val_loss, val_acc = eval_epoch(model, device, valloader, criterion)
+      train_losses.append(loss)
+      train_accs.append(acc)
+      val_losses.append(val_loss)
+      val_accs.append(val_acc)
+      if verbose:
+        print(f'Epoch {epoch+1}, Loss: {loss}, Acc: {acc}, Val Loss: {val_loss}, Val Acc: {val_acc}, LR: {lr}')
+  if testloader is not None:
+    accuracy = evaluate_model(model, testloader, device)
+    #accuracy100 = accuracy*100
+    plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs, test_acc = accuracy) 
+  elif verbose:
+    plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs) 
+  else:
+    result = {'train_losses':train_losses, 
+              'train_accs': train_accs, 
+              'val_losses': val_losses, 
+              'val_accs': val_accs}
+
+  return result

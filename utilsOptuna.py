@@ -4,9 +4,148 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import optuna
 import os
-from optuna.importance import get_param_importances
 import pickle
+import statistics
+from sklearn.model_selection import cross_validate
+from torch.utils.data import DataLoader
 from utilsTrain import plot_training_curves
+from utilsTrain import ResultTrain, train_epoch, eval_epoch
+
+class ObjectiveFunction():
+    def __init__(self, model, fixed_params, search_space, scoring, score, run_name):
+        self.model = model
+        self.fixed_params = fixed_params
+        self.search_space = search_space
+        self.scoring = scoring
+        self.score = score
+        self.run_name = run_name
+
+    def get_optimizable_params(self, trial): 
+        # Define optimizable parameters based on search_space config
+        optimizable_params = {}
+        for module_name, module_config in self.search_space.items():
+            optimizable_params[module_name] = {}
+            for param_name, param_config in module_config.items():
+                if param_config['type'] == 'float':
+                    if param_config.get('log', False):
+                        optimizable_params[module_name][param_name] = trial.suggest_float(
+                            param_name, 
+                            param_config['low'], 
+                            param_config['high'], 
+                            log=True
+                        )
+                    else:
+                        optimizable_params[module_name][param_name] = trial.suggest_float(
+                            param_name, 
+                            param_config['low'], 
+                            param_config['high']
+                        )
+                elif param_config['type'] == 'int':
+                    if param_config.get('exp2', False):
+                        optimizable_params[module_name][param_name] = 2**trial.suggest_int(
+                            param_name, 
+                            param_config['low'], 
+                            param_config['high']
+                        )
+                    else:
+                        optimizable_params[module_name][param_name] = trial.suggest_int(
+                            param_name, 
+                            param_config['low'], 
+                            param_config['high']
+                        )
+                elif param_config['type'] == 'categorical':
+                    optimizable_params[module_name][param_name] = trial.suggest_categorical(
+                        param_name, 
+                        param_config['choices']
+                    )
+        return optimizable_params
+
+class ObjectiveFunctionML(ObjectiveFunction):
+    def __init__(self, X, y, model, fixed_params, search_space, scoring, score, cv, run_name):
+        super().__init__(model, fixed_params, search_space, scoring, score, run_name)
+        self.X = X
+        self.y = y 
+        self.cv = cv
+    
+    def __call__(self, trial):
+        params =  self.get_optimizable_params(trial)
+        model_params = {**self.fixed_params['model'], **params['model']}
+
+        trial.set_user_attr('run', self.run_name)
+        
+        model = self.model(**model_params)
+
+        cv_results = cross_validate(model, self.X, self.y, cv=self.cv, scoring=self.scoring, return_train_score=True, n_jobs=1)
+        score = cv_results['test_' + self.score].mean()
+
+        results_as_lists = {key: value.tolist() for key, value in cv_results.items()}
+        trial.set_user_attr('model', f'{type(model)}') 
+        trial.set_user_attr('k-fold', self.cv)
+        trial.set_user_attr('score', self.score)
+        trial.set_user_attr('train_results', results_as_lists) 
+
+        return score
+
+class ObjectiveFunctionDL(ObjectiveFunction):
+    def __init__(self, train_dataset, val_dataset, model, criterion, optimizer, num_epochs, device, fixed_params, search_space, scoring, score, run_name):
+        super().__init__(model, fixed_params, search_space, scoring, score, run_name)
+        self.train_dataset = train_dataset
+        self.val_dataset = val_dataset
+        self.model = model
+        self.criterion = criterion
+        self.optimizer = optimizer
+        self.num_epochs = num_epochs
+        self.device = device
+    
+    def __call__(self, trial):
+        params = self.get_optimizable_params(trial)
+        trial.set_user_attr('run', self.run_name)
+
+        model = self.model(**params['model'], **self.fixed_params['model'])
+        criterion = self.criterion(**params['criterion'], **self.fixed_params['criterion'])
+        optimizer = self.optimizer(params = model.parameters(), **params['optimizer'], **self.fixed_params['optimizer'])
+        train_loader = DataLoader(dataset = self.train_dataset, shuffle=True, **params['data_loader'], **self.fixed_params['data_loader']) 
+        val_loader = DataLoader(dataset = self.val_dataset, shuffle=False, **params['data_loader'], **self.fixed_params['data_loader']) 
+        model.to(self.device)
+
+        trial.set_user_attr('num_epochs', self.num_epochs)
+        trial.set_user_attr('model', f'{type(model)}')
+        trial.set_user_attr('criterion', f'{type(criterion)}')
+        trial.set_user_attr('optimizer', f'{type(optimizer)}')
+        trial.set_user_attr('fixed_params', self.fixed_params)
+        trial.set_user_attr('device', f'{self.device}')
+        trial.set_user_attr('score', self.score)
+
+        results = ResultTrain(self.scoring)
+
+        for epoch in range(self.num_epochs):
+            train_results = train_epoch(model, self.device, train_loader, criterion, optimizer, self.scoring)
+            test_results = eval_epoch(model, self.device, val_loader, criterion, self.scoring)
+
+            results.update(train_results)
+            results.update(test_results)
+
+            # Report to pruner
+            trial.report(test_results['test_' + self.score], step = epoch)
+
+            # Check for pruning
+            if trial.should_prune():
+                # save metrics
+                trial.set_user_attr('train_results', results.results)
+                print(f"Trial {trial.number} pruned at epoch {epoch}")
+                raise optuna.TrialPruned()
+        
+        # save metrics
+        trial.set_user_attr('train_results', results.results)
+    
+        # return score
+        return test_results['test_' + self.score]
+
+def create_study(study_params, user_attr):
+    study = optuna.create_study(**study_params)
+    for attr in user_attr:
+        study.set_user_attr(attr[0],attr[1])
+    return study
 
 def info_studies_from_storage(db_url):
     """
@@ -256,13 +395,30 @@ def plot_train_nn(trial):
     num_epochs = df.shape[0]
     plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs, test_acc=None)
 
-def best_trial_scores_ML(study): 
+def best_trial_scores_ML(study, list_scores): 
     """
     Retrieves and computes the performance metrics from the best trial in an Optuna study, 
     returning the model name along with the mean training and validation scores rounded 
     to three decimal places for concise evaluation. 
     """
-    model = study.best_trial.user_attrs['model']['name']
-    train_score = round(statistics.mean(study.best_trial.user_attrs['train_score']), 3)
-    val_score = round(statistics.mean(study.best_trial.user_attrs['val_score']), 3)
-    return model, train_score, val_score
+    results = []
+
+    model = study.best_trial.user_attrs['model'].split('.')[-1].replace("'>","")
+    results.append(model)
+    for score in list_scores:
+        results.append(round(statistics.mean(study.best_trial.user_attrs['train_results'][score]), 3))
+    return results
+
+def best_trial_scores_DL(study, list_scores): 
+    """
+    Retrieves and computes the performance metrics from the best trial in an Optuna study, 
+    returning the model name along with the mean training and validation scores rounded 
+    to three decimal places for concise evaluation. 
+    """
+    results = []
+
+    model = study.best_trial.user_attrs['model'].split('.')[-1].replace("'>","")
+    results.append(model)
+    for score in list_scores:
+        results.append(round(study.best_trial.user_attrs['train_results'][score][-1], 3))
+    return results

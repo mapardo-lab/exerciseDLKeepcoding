@@ -19,7 +19,15 @@ def set_random_seed(seed=42):
   torch.backends.cudnn.benchmark = False
   np.random.seed(seed)
   random.seed(seed)
-    
+
+def build_scorer(metric_func, **metric_params):
+    """
+    Create a scorer function with fixed parameters (f1_score, recall_score, ...)
+    """
+    def scorer(y_true, y_pred):
+        return metric_func(y_true, y_pred, **metric_params)
+    return scorer
+
 def get_object_info(obj): 
     """
     Get comprehensive information about any object including attribute values

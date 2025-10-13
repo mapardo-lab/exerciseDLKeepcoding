@@ -10,12 +10,14 @@ class features_Dataset(Dataset):
     """
     Class for handling feature related to engagement
     """
-    def __init__(self, df, transform_features, transform_target):
+    def __init__(self, df, transform_features, transform_target = None):
         self.data = df
         self.transform_features = transform_features
-        self.transform_target = transform_target
         self.features = transform_features.transform(df)
-        self.target  = self.transform_target.transform(self.data)
+        if transform_target is not None:
+            self.target = transform_target.transform(self.data)
+        else:
+            self.target = np.array(self.data['target'])
     
     def __len__(self):
         return len(self.target)
@@ -33,10 +35,13 @@ class images_Dataset(Dataset):
     """
     Class for handling images related to engagement
     """
-    def __init__(self, df, transform_images, transform_target):
+    def __init__(self, df, transform_images, transform_target=None):
         self.data = df
         self.transform_images = transform_images
-        self.target  = transform_target.transform(self.data)
+        if transform_target is not None:
+            self.target = transform_target.transform(self.data)
+        else:
+            self.target = np.array(self.data['target'])
     
     def __len__(self):
         return len(self.target)
@@ -54,12 +59,15 @@ class multimodal3_Dataset(Dataset):
     """
     Class for handling images related to engagement
     """
-    def __init__(self, df, transform_images, transform_embeddings, transform_metadata, transform_target):
+    def __init__(self, df, transform_images, transform_embeddings, transform_metadata, transform_target=None):
         self.data = df
         self.transform_images = transform_images
         self.metadata  = transform_metadata.transform(self.data)
         self.embeddings  = transform_embeddings.transform(self.data)
-        self.target  = transform_target.transform(self.data)
+        if transform_target is not None:
+            self.target = transform_target.transform(self.data)
+        else:
+            self.target = np.array(self.data['target'])
     
     def __len__(self):
         return len(self.target)

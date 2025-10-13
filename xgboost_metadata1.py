@@ -5,14 +5,16 @@ import sys
 import pandas as pd
 import numpy as np
 import optuna
-from sklearn.model_selection import train_test_split, cross_validate
-
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
-from utilsFT import TargetFeature, MultiLabelBinarizerWrapper
-from utils import set_random_seed, get_object_info, get_column_transformer_info
-from utilsProc import process_data
 from xgboost import XGBClassifier
+from sklearn.metrics import make_scorer, recall_score, precision_score, f1_score
+
+from utilsFT import MultiLabelBinarizerWrapper
+from utils import set_random_seed, get_column_transformer_info
+from utilsProc import process_data
+from utilsOptuna import ObjectiveFunctionML, create_study
 
 def main():
     ## Check if run_name argument is provided
@@ -35,13 +37,12 @@ def main():
     
     # split data into train and test datasets
     test_size_test = 0.2
-    df_train, df_test = train_test_split(poi_data_processed, test_size = test_size_test) # *
+    df_train, df_test = train_test_split(poi_data_processed, test_size = test_size_test, stratify = poi_data_processed['target'], random_state=42) # *
     print(f'Number of samples')
     print(f'Train dataset: {df_train.shape[0]}')
     print(f'Test dataset: {df_test.shape[0]}')
     
     # preprocess data Imputation/Encoding/Transformation
-    proc_target = TargetFeature(col1_name='Visits', col2_name='Likes_Dislikes') # *
     proc_features = ColumnTransformer(
         transformers=[
             ('numerical', StandardScaler(), ['xps', 'locationLon', 'locationLat', 'NumTags']),
@@ -51,68 +52,77 @@ def main():
         remainder="drop"
     )
     
-    proc_target.fit(df_train)
     proc_features.fit(df_train)
     
     # Dataset
     X_train = proc_features.transform(df_train)
-    y_train = proc_target.transform(df_train)
-    
-    ## Configure optimization
-    def objective(trial):
-        # hyperparameters to optimize
-        params = {
-            'max_depth': trial.suggest_int('max_depth', 2, 10),
-            'n_estimators': trial.suggest_int('n_estimators', 25, 700),
-            'eta': trial.suggest_float('eta', 1e-3,1e-1, log = True),
-            'reg_alpha': trial.suggest_int('reg_alpha', 3, 9),
-            'reg_lambda': trial.suggest_int('reg_lambda', 0, 10)
-        }
-        trial.set_user_attr('run', run_name)
-        
-        # build model
-        model = XGBClassifier(**params, seed=42)
-        # train/validate model
-        cv=5
-        cv_results = cross_validate(model, X_train, y_train, cv=cv, return_train_score=True, n_jobs=1)
-        score = cv_results['test_score'].mean()
-        
-        trial.set_user_attr('model', {'name': model.__class__.__name__, 'module': model.__class__.__module__}) 
-        trial.set_user_attr('k-fold', cv) 
-        trial.set_user_attr('val_score', list(cv_results['test_score'])) 
-        trial.set_user_attr('train_score', list(cv_results['train_score'])) 
-        
-        # return score
-        return score
-    
+    y_train = df_train['target']
 
-    # create/load study
-    study = optuna.create_study(
-        direction='maximize',
-        storage='sqlite:///optuna_DL_exercise.db',  # Persistent storage
-        study_name=sys.argv[0].replace('.py','').replace('./',''),
-        sampler=optuna.samplers.TPESampler(
+    # hyperparameters to optimizate
+    search_space = {
+        'model': {
+            'max_depth': {'type': 'int', 'low': 3, 'high': 10},
+            'n_estimators': {'type': 'int', 'low': 25, 'high': 700},
+            'eta': {'type': 'float', 'low': 1e-3, 'high': 1e-1, 'log': True},
+            'reg_alpha': {'type': 'int', 'low': 3, 'high': 9},
+            'reg_lambda': {'type': 'int', 'low': 0, 'high': 10},
+        }
+    }
+
+    # fixed hyperparameters
+    fixed_params = {
+        'model': {
+            'seed': 42
+        }
+    }
+
+    scoring = {
+        'sensitivity': make_scorer(recall_score, pos_label=1),
+        'precision': make_scorer(precision_score, pos_label=1),
+        'f1_score': make_scorer(f1_score, pos_label=1),
+        'macro_precision': make_scorer(precision_score, average='binary')
+    }
+
+    # objetive function ML
+    objective = ObjectiveFunctionML(
+        X=X_train, y=y_train,
+        model=XGBClassifier,
+        fixed_params=fixed_params,
+        search_space=search_space,
+        scoring=scoring,
+        score = 'f1_score',
+        cv = 5,
+        run_name=run_name
+    )
+    
+    # parameters for study
+    study_params = {
+        'direction': 'maximize',
+        'storage': 'sqlite:///optuna_DL_exercise.db',  # Persistent storage
+        'study_name': sys.argv[0].replace('.py','').replace('./',''),
+        'sampler': optuna.samplers.TPESampler(
             n_startup_trials = 10,
             n_ei_candidates = 24,
             seed=42),
-        pruner = optuna.pruners.MedianPruner(
-            n_startup_trials = 5,
-            n_warmup_steps = 3
-        ),
-        load_if_exists=True  # Continue if study exists
-    )
+        'pruner': None, 
+        'load_if_exists': True  # Continue if study exists
+    }
 
-    # set user_attr CONFIG!!!
-    study.set_user_attr('script', f'{sys.argv[0]}')
-    study.set_user_attr('dataset', f'{data_file}')
-    study.set_user_attr('preproc_data', {'module': process_data.__module__, 'function': process_data.__name__})
-    study.set_user_attr('split_test', {'test_size': test_size_test})
-    study.set_user_attr('proc_target', get_object_info(proc_target))
-    study.set_user_attr('proc_features', get_column_transformer_info(proc_features))
-    study.set_user_attr('comments', 'XGBoost model')
-    
-    ## Run trials
-    study.optimize(objective, n_trials=30)
+    # user attributes for study
+    user_attr = [
+        ('script', f'{sys.argv[0]}'),
+        ('dataset', f'{data_file}'),
+        ('preproc_data', f'{type(process_data)}'),
+        ('split_test', {'test_size': test_size_test}),
+        ('proc_features', get_column_transformer_info(proc_features)),
+        ('comments', 'XGBoost')
+    ]
+
+    # create study
+    study = create_study(study_params, user_attr)
+
+    ## run trials
+    study.optimize(objective, n_trials=15)
     print(f"Completed {len(study.trials)} trials")
     print(f"Best score: {study.best_value:.4f}")
     print(f"Best params: {study.best_trial.params}")
