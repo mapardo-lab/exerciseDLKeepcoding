@@ -14,20 +14,6 @@ def train_epoch(model: nn.Module, device: torch.device, train_loader: DataLoader
                 criterion, optimizer, scoring, l1_lambda=None, scheduler=None):
   """
   Train neural network for one epoch and return the training metrics.
-    
-  Args:
-    model: Neural network model to train
-    device: Training device ('cuda' or 'cpu')
-    train_loader: Training data loader
-    criterion: Objective loss function
-    optimizer: Parameter optimizer
-    l1_lambda: Parameter L1 for regularization
-    scheduler: LR scheduler instance
-        
-  Returns:
-    train_loss: Average loss on the training set  
-    train_acc: Training set accuracy (%)  
-    current_lr: Current learning rate after scheduling
   """
   model.train()
   train_loss = 0
@@ -56,16 +42,6 @@ def eval_epoch(model: nn.Module, device: torch.device,
                val_loader: DataLoader, criterion, scoring):
   """
   Evaluates network model on validation data and returns metrics
-    
-  Args:
-    model: Neural network model to evaluate
-    device: Hardware device for evaluation (CPU/GPU)
-    val_loader: Validation DataLoader
-    criterion: Loss function to use
-        
-  Returns:
-    val_loss (float): Average loss on validation batches
-    val_acc (float): Validation accuracy percentage
   """
   model.eval()
   val_loss = 0
