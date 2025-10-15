@@ -12,7 +12,7 @@ from torch.nn import CrossEntropyLoss
 from sklearn.metrics import recall_score, precision_score, f1_score
 
 from utilsFT import MultiLabelBinarizerWrapper
-from utils import set_random_seed, build_scorer, get_column_transformer_info
+from utils import set_random_seed, build_scorer, get_column_transformer_info, info_object
 from utilsProc import process_data 
 from utilsDataset import features_Dataset
 from utilsNN import FCNN_shallow
@@ -98,24 +98,23 @@ def main():
     }
 
     model = FCNN_shallow
-
-    training = ModelTrain(
-        model = model,
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"), 
-        criterion = CrossEntropyLoss,
-        optimizer = Adam,
-        scoring=scoring,
-    )
-
+    training = ModelTrain
+    criterion = CrossEntropyLoss
+    optimizer = Adam
     score = 'f1_score'
 
     # objetive function DL
     objective = ObjectiveFunctionDL(
         train_dataset = train_dataset, val_dataset = val_dataset,
+        model = model,
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"), 
+        criterion = criterion,
+        optimizer = optimizer,
         training = training,
         num_epochs = 10,
         fixed_params=fixed_params,
         search_space=search_space,
+        scoring=scoring,
         score = score,
         run_name=run_name
     )
@@ -136,16 +135,17 @@ def main():
     }
 
     # user attributes for study
-    # TODO Write device, optimizer, criterion
     user_attr = [
         ('script', f'{sys.argv[0]}'),
         ('dataset', f'{data_file}'),
-        ('preproc_data', f'{type(process_data)}'),
+        ('preproc_data', info_object(process_data)),
         ('split_test', {'test_size': test_size_test}),
         ('proc_features', get_column_transformer_info(proc_features)),
         ('split_val', {'test_size': test_size_val}),
-        ('model', f'{type(model)}'),
-        ('training', f'{type(training)}'),
+        ('model', info_object(model)),
+        ('training', info_object(training)),
+        ('optimizer', info_object(optimizer)),
+        ('criterion', info_object(criterion)),
         ('score', score),
         ('comments', 'Shallow FCNN using metadata')
     ]
@@ -154,7 +154,7 @@ def main():
     study = create_study(study_params, user_attr)
 
     ## run trials
-    study.optimize(objective, n_trials=10)
+    study.optimize(objective, n_trials=2)
     print(f"Completed {len(study.trials)} trials")
     print(f"Best score: {study.best_value:.4f}")
     print(f"Best params: {study.best_trial.params}")

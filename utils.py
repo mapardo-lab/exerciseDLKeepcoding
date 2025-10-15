@@ -52,4 +52,9 @@ def get_column_transformer_info(column_transformer):
         })
     
     return ct_info
-    
+
+def info_object(obj):
+    results = {}
+    results['name'] = obj.__name__
+    results['module'] = obj.__module__
+    return results

@@ -2,22 +2,15 @@ import numpy as np
 import torch
 
 class ModelTrain():
-    def __init__(self, model, device, criterion, optimizer, scoring):
-        self.model = model
+    def __init__(self, model, device, criterion, optimizer, scoring, params, fixed_params):
+        self.model = model(**params['model'], **fixed_params['model'])
+        self.criterion = criterion(**params['criterion'], **fixed_params['criterion'])
+        self.optimizer = optimizer(params = self.model.parameters(), **params['optimizer'], **fixed_params['optimizer'])
         self.device = device
-        self.criterion = criterion
-        self.optimizer = optimizer
+        self.model.to(self.device)
         self.scoring = scoring
         self.results_train = ResultTrain(self.scoring)
         self.results_val = ResultTrain(self.scoring)
-
-    def configure(self, params, fixed_params):
-        """
-        """
-        self.model = self.model(**params['model'], **fixed_params['model'])
-        self.criterion = self.criterion(**params['criterion'], **fixed_params['criterion'])
-        self.optimizer = self.optimizer(params = self.model.parameters(), **params['optimizer'], **fixed_params['optimizer'])
-        self.model.to(self.device)
 
     def train_epoch(self, train_loader): 
         """
@@ -42,7 +35,6 @@ class ModelTrain():
             y_pred = np.concatenate([y_pred, predicted.cpu().numpy()])
 
         self.results_train.update(train_loss, y_true, y_pred)
-        #return self.get_results(train_loss, y_true, y_pred, 'train')
 
     def eval_model(self, val_loader): 
         """
@@ -64,7 +56,6 @@ class ModelTrain():
                 y_true = np.concatenate([y_true, data['target'].cpu().numpy()])
                 y_pred = np.concatenate([y_pred, predicted.cpu().numpy()])
         self.results_val.update(val_loss, y_true, y_pred)
-        #return self.get_results(val_loss, y_true, y_pred, 'test')
 
     def train_model(self, num_epochs, train_loader):
         """
