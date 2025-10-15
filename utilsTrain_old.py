@@ -1,0 +1,183 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
+import torch.nn.functional as F
+import torchvision
+import random
+import numpy  as np  
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+def train_epoch(model: nn.Module, device: torch.device, train_loader: DataLoader, 
+                criterion, optimizer, scoring, l1_lambda=None, scheduler=None):
+  """
+  Train neural network for one epoch and return the training metrics.
+  """
+  model.train()
+  train_loss = 0
+  y_pred = np.array([])
+  y_true = np.array([])
+    
+  for batch_idx, data in enumerate(train_loader):
+    for key, value in data.items():
+      data[key] = value.to(device)
+    optimizer.zero_grad()
+    output = model(data)
+    loss = criterion(output, data['target'])
+    if l1_lambda is not None:
+      l1_norm = sum(p.abs().sum() for p in model.parameters())
+      loss += l1_lambda * l1_norm
+    loss.backward()
+    optimizer.step()
+    train_loss += loss.item()
+    _, predicted = output.max(1)
+    y_true = np.concatenate([y_true, data['target'].cpu().numpy()])
+    y_pred = np.concatenate([y_pred, predicted.cpu().numpy()])
+
+  return get_results(train_loss, y_true, y_pred, scoring, 'train')
+
+def eval_epoch(model: nn.Module, device: torch.device, 
+               val_loader: DataLoader, criterion, scoring):
+  """
+  Evaluates network model on validation data and returns metrics
+  """
+  model.eval()
+  val_loss = 0
+  y_pred = np.array([])
+  y_true = np.array([])
+    
+  with torch.no_grad():
+    for data in val_loader:
+      for key, value in data.items():
+        data[key] = value.to(device)
+      output = model(data)
+      loss = criterion(output, data['target'])
+      val_loss += loss.item()
+      _, predicted = output.max(1)
+      y_true = np.concatenate([y_true, data['target'].cpu().numpy()])
+      y_pred = np.concatenate([y_pred, predicted.cpu().numpy()])
+  return get_results(val_loss, y_true, y_pred, scoring, 'test')
+
+def get_results(loss, y_true, y_pred, scoring, type):
+  """
+  Computes and returns a dictionary of evaluation metrics including loss and specified scoring functions.
+  """
+  results = {type + '_loss': loss}
+  for score_name, score_func in scoring.items():
+    results[type + '_' + score_name] = score_func(y_true, y_pred)
+  return results
+
+def evaluate_model(model, testloader, device):
+  """
+  Evaluates network model on a test dataset.
+
+  Args:
+    model: Trained neural network model to evaluate.
+    testloader: DataLoader containing the test dataset.
+    device: Device to perform evaluation on ('cuda' or 'cpu').
+
+  Returns:
+    float: Classification accuracy percentage on the test set.
+  """
+  model.eval()
+  total_predicted = np.array([])
+  total_labels = np.array([])
+  with torch.no_grad():
+    for data in testloader:
+      for key, value in data.items():
+        data[key] = value.to(device)
+      outputs = model(data)
+      _, predicted = torch.max(outputs.data, 1)
+      total_predicted = np.concatenate([total_predicted,predicted.cpu().numpy()])
+      total_labels = np.concatenate([total_labels,data['target'].cpu().numpy()])
+    
+  accuracy = accuracy_score(total_labels, total_predicted)
+  print('Confussion matrix:')
+  print(f'{confusion_matrix(total_labels, total_predicted)}')
+  print('\nClassification report')
+  print(f'{classification_report(total_labels, total_predicted)}')
+  print(f'Accuracy score: {accuracy:.2f}')
+
+  return accuracy
+
+def plot_training_curves(train_losses, val_losses, train_accs, 
+                         val_accs, num_epochs, test_acc=None):
+  """
+  From the model training output, the training progress is plotted 
+  for loss function and accuracy values. Optionally, accuracy for
+  the test is also plotted.
+  """
+  plt.style.use("ggplot")
+  plt.figure(figsize=(12, 5))
+  plt.subplot(1, 2, 1)
+  plt.plot(range(num_epochs), train_losses, label="Train Loss")
+  plt.plot(range(num_epochs), val_losses, label="Validation Loss")
+  plt.title("Training and Validation Loss")
+  plt.xlabel("Epoch #")
+  plt.ylabel("Loss")
+  plt.legend()
+
+  plt.subplot(1, 2, 2)
+  plt.plot(range(num_epochs), train_accs, label="Train Accuracy")
+  plt.plot(range(num_epochs), val_accs, label="Validation Accuracy")
+  if test_acc is not None:
+    plt.axhline(y=test_acc, color='red', linestyle='--', label='Test Accuracy')
+  plt.title("Training and Validation Accuracy")
+  plt.xlabel("Epoch #")
+  plt.ylabel("Accuracy")
+  plt.legend()
+  plt.tight_layout()
+  plt.show()
+    
+class ResultTrain:
+  """
+  Tracks and accumulates training and validation metrics throughout the training process.
+  """
+  def __init__(self, scoring):
+    """
+    Initialize Train object with empty lists for losses and accuracies.
+    """
+    self.results = {}
+    for score_name, _ in scoring.items():
+      self.results['test_loss'] = []
+      self.results['train_loss'] = []
+      self.results['test_' + score_name] = []
+      self.results['train_' + score_name] = []
+
+  def update(self, new_results):
+    for score_name, score in new_results.items():
+      self.results[score_name].append(score)
+    
+def train_model(model, criterion, optimizer, num_epochs, trainloader, valloader, 
+                device, testloader=None, l1_lambda = None, scheduler = None, verbose = True):
+  """
+  Train model and plot metrics from training
+  """
+  result = None
+  model.to(device)
+
+#  train_losses, train_accs, val_losses, val_accs = [], [], [], []
+  for epoch in range(num_epochs):
+      loss, acc , lr = train_epoch(model, device, trainloader, criterion, optimizer, l1_lambda=l1_lambda, scheduler=scheduler)
+#      val_loss, val_acc = eval_epoch(model, device, valloader, criterion)
+      train_losses.append(loss)
+      train_accs.append(acc)
+#      val_losses.append(val_loss)
+#      val_accs.append(val_acc)
+#      if verbose:
+#        print(f'Epoch {epoch+1}, Loss: {loss}, Acc: {acc}, Val Loss: {val_loss}, Val Acc: {val_acc}, LR: {lr}')
+  if testloader is not None:
+    accuracy = evaluate_model(model, testloader, device)
+    #accuracy100 = accuracy*100
+    plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs, test_acc = accuracy) 
+#  elif verbose:
+#    plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs) 
+#  else:
+#    result = {'train_losses':train_losses, 
+#              'train_accs': train_accs, 
+#              'val_losses': val_losses, 
+#              'val_accs': val_accs}
+
+  return result

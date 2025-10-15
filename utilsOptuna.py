@@ -8,17 +8,15 @@ import statistics
 from sklearn.model_selection import cross_validate
 from torch.utils.data import DataLoader
 from utilsTrain import plot_training_curves
-from utilsTrain import ResultTrain, train_epoch, eval_epoch
+from utilsTrain import ResultTrain
 
 class ObjectiveFunction():
     """
     Base class for defining objective functions with configurable hyperparameter search spaces.
     """
-    def __init__(self, model, fixed_params, search_space, scoring, score, run_name):
-        self.model = model
+    def __init__(self, fixed_params, search_space, score, run_name):
         self.fixed_params = fixed_params
         self.search_space = search_space
-        self.scoring = scoring
         self.score = score
         self.run_name = run_name
 
@@ -67,10 +65,12 @@ class ObjectiveFunctionML(ObjectiveFunction):
     Objective function for machine learning models using cross-validation for hyperparameter optimization.
     """
     def __init__(self, X, y, model, fixed_params, search_space, scoring, score, cv, run_name):
-        super().__init__(model, fixed_params, search_space, scoring, score, run_name)
+        super().__init__(fixed_params, search_space, score, run_name)
         self.X = X
         self.y = y 
         self.cv = cv
+        self.model = model
+        self.scoring = scoring
     
     def __call__(self, trial):
         params =  self.get_optimizable_params(trial)
@@ -95,59 +95,46 @@ class ObjectiveFunctionDL(ObjectiveFunction):
     """
     Objective function for deep learning models with training loop and pruning capabilities.
     """
-    def __init__(self, train_dataset, val_dataset, model, criterion, optimizer, num_epochs, device, fixed_params, search_space, scoring, score, run_name):
-        super().__init__(model, fixed_params, search_space, scoring, score, run_name)
+    def __init__(self, train_dataset, val_dataset, training, num_epochs, fixed_params, search_space, score, run_name):
+        super().__init__(fixed_params, search_space, score, run_name)
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
-        self.model = model
-        self.criterion = criterion
-        self.optimizer = optimizer
+        self.training = training
         self.num_epochs = num_epochs
-        self.device = device
-    
+      
     def __call__(self, trial):
         params = self.get_optimizable_params(trial)
         trial.set_user_attr('run', self.run_name)
 
-        model = self.model(**params['model'], **self.fixed_params['model'])
-        criterion = self.criterion(**params['criterion'], **self.fixed_params['criterion'])
-        optimizer = self.optimizer(params = model.parameters(), **params['optimizer'], **self.fixed_params['optimizer'])
+        self.training.configure(params, self.fixed_params)
         train_loader = DataLoader(dataset = self.train_dataset, shuffle=True, **params['data_loader'], **self.fixed_params['data_loader']) 
         val_loader = DataLoader(dataset = self.val_dataset, shuffle=False, **params['data_loader'], **self.fixed_params['data_loader']) 
-        model.to(self.device)
 
         trial.set_user_attr('num_epochs', self.num_epochs)
-        trial.set_user_attr('model', f'{type(model)}')
-        trial.set_user_attr('criterion', f'{type(criterion)}')
-        trial.set_user_attr('optimizer', f'{type(optimizer)}')
         trial.set_user_attr('fixed_params', self.fixed_params)
-        trial.set_user_attr('device', f'{self.device}')
-        trial.set_user_attr('score', self.score)
-
-        results = ResultTrain(self.scoring)
 
         for epoch in range(self.num_epochs):
-            train_results = train_epoch(model, self.device, train_loader, criterion, optimizer, self.scoring)
-            test_results = eval_epoch(model, self.device, val_loader, criterion, self.scoring)
-
-            results.update(train_results)
-            results.update(test_results)
+            self.training.train_epoch(train_loader)
+            self.training.eval_model(val_loader)
 
             # Report to pruner
-            trial.report(test_results['test_' + self.score], step = epoch)
+            result = self.training.results_val.results[self.score][-1]
+            trial.report(result, step = epoch)
 
             # Check for pruning
             if trial.should_prune():
                 # save metrics
-                trial.set_user_attr('train_results', results.results)
+                trial.set_user_attr('train_results', self.training.results_train)
+                trial.set_user_attr('val_results', self.training.results_val)
                 print(f"Trial {trial.number} pruned at epoch {epoch}")
                 raise optuna.TrialPruned()
         
         # save metrics
-        trial.set_user_attr('train_results', results.results)
+        trial.set_user_attr('train_results', self.training.results_train.results)
+        trial.set_user_attr('val_results', self.training.results_val.results)
     
         # return score
-        return test_results['test_' + self.score]
+        return self.training.results_val.results[self.score][-1]
 
 def create_study(study_params, user_attr):
     """
