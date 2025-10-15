@@ -98,23 +98,27 @@ def main():
     }
 
     model = FCNN_shallow
-    training = ModelTrain
+    train = ModelTrain
     criterion = CrossEntropyLoss
     optimizer = Adam
     score = 'f1_score'
 
+    train_config = {
+        'model': model,
+        'device': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"), 
+        'criterion': criterion,
+        'optimizer': optimizer,
+        'scoring': scoring
+    }
+
     # objetive function DL
     objective = ObjectiveFunctionDL(
         train_dataset = train_dataset, val_dataset = val_dataset,
-        model = model,
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"), 
-        criterion = criterion,
-        optimizer = optimizer,
-        training = training,
+        train = train,
+        train_config = train_config,
         num_epochs = 10,
         fixed_params=fixed_params,
         search_space=search_space,
-        scoring=scoring,
         score = score,
         run_name=run_name
     )
@@ -135,6 +139,7 @@ def main():
     }
 
     # user attributes for study
+    # TODO training_config in unique entry
     user_attr = [
         ('script', f'{sys.argv[0]}'),
         ('dataset', f'{data_file}'),
@@ -143,7 +148,7 @@ def main():
         ('proc_features', get_column_transformer_info(proc_features)),
         ('split_val', {'test_size': test_size_val}),
         ('model', info_object(model)),
-        ('training', info_object(training)),
+        ('training', info_object(train)),
         ('optimizer', info_object(optimizer)),
         ('criterion', info_object(criterion)),
         ('score', score),

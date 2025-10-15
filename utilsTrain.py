@@ -6,13 +6,13 @@ import torch
 #        super().__init__(model, device, criterion, optimizer, scoring, params, fixed_params)
 
 class ModelTrain():
-    def __init__(self, model, device, criterion, optimizer, scoring, params, fixed_params):
-        self.model = model(**params['model'], **fixed_params['model'])
-        self.criterion = criterion(**params['criterion'], **fixed_params['criterion'])
-        self.optimizer = optimizer(params = self.model.parameters(), **params['optimizer'], **fixed_params['optimizer'])
-        self.device = device
+    def __init__(self, train_config, params, fixed_params):
+        self.model = train_config['model'](**params['model'], **fixed_params['model'])
+        self.criterion = train_config['criterion'](**params['criterion'], **fixed_params['criterion'])
+        self.optimizer = train_config['optimizer'](params = self.model.parameters(), **params['optimizer'], **fixed_params['optimizer'])
+        self.device = train_config['device']
         self.model.to(self.device)
-        self.scoring = scoring
+        self.scoring = train_config['scoring']
         self.results_train = ResultTrain(self.scoring)
         self.results_val = ResultTrain(self.scoring)
 

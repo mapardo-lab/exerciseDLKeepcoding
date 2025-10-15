@@ -14,13 +14,11 @@ class ObjectiveFunction():
     """
     Base class for defining objective functions with configurable hyperparameter search spaces.
     """
-    def __init__(self, model, fixed_params, search_space, scoring, score, run_name):
+    def __init__(self, fixed_params, search_space, score, run_name):
         self.fixed_params = fixed_params
         self.search_space = search_space
         self.score = score
         self.run_name = run_name
-        self.model = model
-        self.scoring = scoring
 
     def get_optimizable_params(self, trial): 
         # Define optimizable parameters based on search_space config
@@ -67,7 +65,9 @@ class ObjectiveFunctionML(ObjectiveFunction):
     Objective function for machine learning models using cross-validation for hyperparameter optimization.
     """
     def __init__(self, X, y, model, fixed_params, search_space, scoring, score, cv, run_name):
-        super().__init__(fixed_params, model, search_space, scoring, score, run_name)
+        super().__init__(fixed_params, search_space, score, run_name)
+        self.model = model
+        self.scoring = scoring
         self.X = X
         self.y = y 
         self.cv = cv
@@ -95,22 +95,20 @@ class ObjectiveFunctionDL(ObjectiveFunction):
     """
     Objective function for deep learning models with training loop and pruning capabilities.
     """
-    def __init__(self, train_dataset, val_dataset, model, device, criterion, optimizer, 
-                 training, num_epochs, fixed_params, search_space, scoring, score, run_name):
-        super().__init__(model, fixed_params, search_space, scoring, score, run_name)
+    def __init__(self, train_dataset, val_dataset, train, train_config, 
+                 num_epochs, fixed_params, search_space, score, run_name):
+        super().__init__(fixed_params, search_space, score, run_name)
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
-        self.device = device
-        self.criterion = criterion
-        self.optimizer = optimizer
-        self.training = training
+        self.train = train
+        self.train_config = train_config
         self.num_epochs = num_epochs
       
     def __call__(self, trial):
         params = self.get_optimizable_params(trial)
         trial.set_user_attr('run', self.run_name)
 
-        training = self.training(self.model, self.device, self.criterion, self.optimizer, self.scoring, params, self.fixed_params)
+        training = self.train(self.train_config, params, self.fixed_params)
         train_loader = DataLoader(dataset = self.train_dataset, shuffle=True, **params['data_loader'], **self.fixed_params['data_loader']) 
         val_loader = DataLoader(dataset = self.val_dataset, shuffle=False, **params['data_loader'], **self.fixed_params['data_loader']) 
 
