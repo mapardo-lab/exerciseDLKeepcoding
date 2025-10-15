@@ -1,6 +1,10 @@
 import numpy as np
 import torch
 
+#class ModelTrainL1(ModelTrain):
+#    def __init__(self, model, device, criterion, optimizer, scoring, params, fixed_params,):
+#        super().__init__(model, device, criterion, optimizer, scoring, params, fixed_params)
+
 class ModelTrain():
     def __init__(self, model, device, criterion, optimizer, scoring, params, fixed_params):
         self.model = model(**params['model'], **fixed_params['model'])
@@ -106,7 +110,6 @@ class ResultTrain:
             results[score_name] = score_func(y_true, y_pred)
         return results
     
-#def plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs, test_acc=None):
 def plot_training_curves(train_results, val_results):
   """
   From the model training output, the training progress is plotted 

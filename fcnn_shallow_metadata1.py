@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
-import os
 import sys
 import pandas as pd
-import numpy as np
 import optuna
 import torch
 from sklearn.compose import ColumnTransformer
@@ -11,16 +9,15 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.model_selection import train_test_split
 from torch.optim import Adam
 from torch.nn import CrossEntropyLoss
-import torchvision.transforms as transforms
-import torchvision.models as models
 from sklearn.metrics import recall_score, precision_score, f1_score
 
-from utilsFT import TargetFeature, MultiLabelBinarizerWrapper
-from utils import set_random_seed, build_scorer, get_column_transformer_info
+from utilsFT import MultiLabelBinarizerWrapper
+from utils import set_random_seed, build_scorer, get_column_transformer_info, info_object
 from utilsProc import process_data 
 from utilsDataset import features_Dataset
 from utilsNN import FCNN_shallow
 from utilsOptuna import ObjectiveFunctionDL, create_study
+from utilsTrain import ModelTrain
 
 def main():
     ## Check if run_name argument is provided
@@ -100,18 +97,25 @@ def main():
         'macro_precision': build_scorer(precision_score, average='binary', zero_division = 0)
     }
 
+    model = FCNN_shallow
+    training = ModelTrain
+    criterion = CrossEntropyLoss
+    optimizer = Adam
+    score = 'f1_score'
+
     # objetive function DL
     objective = ObjectiveFunctionDL(
         train_dataset = train_dataset, val_dataset = val_dataset,
-        model = FCNN_shallow,
-        criterion = CrossEntropyLoss,
-        optimizer = Adam,
-        num_epochs = 10,
+        model = model,
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"), 
+        criterion = criterion,
+        optimizer = optimizer,
+        training = training,
+        num_epochs = 10,
         fixed_params=fixed_params,
         search_space=search_space,
         scoring=scoring,
-        score = 'f1_score',
+        score = score,
         run_name=run_name
     )
     # parameters for study
@@ -134,10 +138,15 @@ def main():
     user_attr = [
         ('script', f'{sys.argv[0]}'),
         ('dataset', f'{data_file}'),
-        ('preproc_data', f'{type(process_data)}'),
+        ('preproc_data', info_object(process_data)),
         ('split_test', {'test_size': test_size_test}),
         ('proc_features', get_column_transformer_info(proc_features)),
         ('split_val', {'test_size': test_size_val}),
+        ('model', info_object(model)),
+        ('training', info_object(training)),
+        ('optimizer', info_object(optimizer)),
+        ('criterion', info_object(criterion)),
+        ('score', score),
         ('comments', 'Shallow FCNN using metadata')
     ]
 
@@ -145,7 +154,7 @@ def main():
     study = create_study(study_params, user_attr)
 
     ## run trials
-    study.optimize(objective, n_trials=10)
+    study.optimize(objective, n_trials=2)
     print(f"Completed {len(study.trials)} trials")
     print(f"Best score: {study.best_value:.4f}")
     print(f"Best params: {study.best_trial.params}")
