@@ -58,3 +58,10 @@ def info_object(obj):
     results['name'] = obj.__name__
     results['module'] = obj.__module__
     return results
+
+def info_train(train_config):
+    result = {}
+    for key, value in train_config.items():
+        if (isinstance(value, type) | callable(value)):
+            result[key] = info_object(value)
+    return result

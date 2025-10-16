@@ -95,12 +95,12 @@ class ObjectiveFunctionDL(ObjectiveFunction):
     """
     Objective function for deep learning models with training loop and pruning capabilities.
     """
-    def __init__(self, train_dataset, val_dataset, train, train_config, 
+    def __init__(self, train_dataset, val_dataset, train_config, 
                  num_epochs, fixed_params, search_space, score, run_name):
         super().__init__(fixed_params, search_space, score, run_name)
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
-        self.train = train
+        self.train = train_config['train']
         self.train_config = train_config
         self.num_epochs = num_epochs
       
@@ -114,6 +114,7 @@ class ObjectiveFunctionDL(ObjectiveFunction):
 
         trial.set_user_attr('num_epochs', self.num_epochs)
         trial.set_user_attr('fixed_params', self.fixed_params)
+        trial.set_user_attr('score', self.score)
 
         for epoch in range(self.num_epochs):
             training.train_epoch(train_loader)

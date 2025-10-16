@@ -1,12 +1,13 @@
 import numpy as np
 import torch
+from utils import info_object
 
 #class ModelTrainL1(ModelTrain):
 #    def __init__(self, model, device, criterion, optimizer, scoring, params, fixed_params,):
 #        super().__init__(model, device, criterion, optimizer, scoring, params, fixed_params)
 
 class ModelTrain():
-    def __init__(self, train_config, params, fixed_params):
+    def __init__(self, train_config, params, fixed_params = None):
         self.model = train_config['model'](**params['model'], **fixed_params['model'])
         self.criterion = train_config['criterion'](**params['criterion'], **fixed_params['criterion'])
         self.optimizer = train_config['optimizer'](params = self.model.parameters(), **params['optimizer'], **fixed_params['optimizer'])
@@ -76,10 +77,22 @@ class ModelTrain():
 
         #return result
 
-    def save_model(self):
-        pass
+    def save_model(self, filename):
+        torch.save({
+            'model_state_dict': self.model.state_dict(),
+            'model_architecture': info_object(self.model),
+            #'train_config': info_train(self.train_config)
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            #'epoch': self.num_epochs,
+            'results_train': self.results_train,
+            'results_test': self.results_val,
+        }, filename + '.pth')
 
     #def load_model(self):
+    #    model = YourModelClass(...)  # Recreate model architecture
+    #    checkpoint = torch.load('model_checkpoint.pth')
+    #    model.load_state_dict(checkpoint['model_state_dict'])
+    #    model.eval()
     #    pass
 
 class ResultTrain:
