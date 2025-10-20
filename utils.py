@@ -1,12 +1,9 @@
 import numpy  as np  
-import pandas as pd
-import cv2
-from tqdm import tqdm
 import torch
 import random
+import dill
+import base64
 from sentence_transformers import SentenceTransformer
-import inspect
-import statistics
 
 def set_random_seed(seed=42): 
   """
@@ -65,3 +62,12 @@ def info_train(train_config):
         if (isinstance(value, type) | callable(value)):
             result[key] = info_object(value)
     return result
+
+def serial_encode(obj):
+    serialized = dill.dumps(obj)
+    encoded = base64.b64encode(serialized).decode("utf-8")
+    return encoded
+
+def serial_decode(encoded):
+    decoded = dill.loads(base64.b64decode(encoded))
+    return decoded

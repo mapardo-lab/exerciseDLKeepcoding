@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
-import os
 import sys
 import pandas as pd
-import numpy as np
 import optuna
 import torch
 from sklearn.compose import ColumnTransformer
@@ -11,16 +9,15 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.model_selection import train_test_split
 from torch.optim import Adam
 from torch.nn import CrossEntropyLoss
-import torchvision.transforms as transforms
-import torchvision.models as models
 from sklearn.metrics import recall_score, precision_score, f1_score
 
-from utilsFT import ImagesResNet18Transform
-from utils import set_random_seed, build_scorer, get_column_transformer_info
-from utilsProc import process_data 
-from utilsDataset import images_Dataset
-from utilsNN import ResNet18_pretrain
+from utilsFT import MultiLabelBinarizerWrapper
+from utils import set_random_seed, build_scorer, serial_encode
+from utilsPreproc import preprocess_data 
+from utilsDataset import features_Dataset
+from utilsNN import FCNN_shallow
 from utilsOptuna import ObjectiveFunctionDL, create_study
+from utilsTrain import ModelTrain
 
 def main():
     ## Check if run_name argument is provided
@@ -32,39 +29,57 @@ def main():
     
     ## Random reproducibility
     set_random_seed()
+    random_state = 42
     
     ## Load dataset
     data_file = "poi_dataset.csv"
-    poi_data = pd.read_csv(data_file) 
+    load = pd.read_csv
+    df = load(data_file) 
 
     ## Proprocess data to train/validate model
     # simple process features + create new features
-    poi_data_processed = process_data(poi_data) 
+    preproc = preprocess_data
+    df_processed = preproc(df) 
     
     # split data into train and test datasets
     test_size_test = 0.2
-    df_train, df_test = train_test_split(poi_data_processed, test_size = test_size_test, random_state = 42) 
+    df_train, df_test = train_test_split(df_processed, test_size = test_size_test, random_state = random_state, stratify=df_processed['target']) 
     print(f'Number of samples')
     print(f'Train dataset: {df_train.shape[0]}')
     print(f'Test dataset: {df_test.shape[0]}')
     
     # preprocess data Imputation/Encoding/Transformation
-    proc_images = ImagesResNet18Transform(image_path='main_image_path')
-    
+    proc = {
+        'transform_features': ColumnTransformer(
+            transformers=[
+                ('numerical', StandardScaler(), ['xps', 'locationLon', 'locationLat', 'NumTags']),
+                ('categories', MultiLabelBinarizerWrapper(), ['categories']), 
+                ('tier',OneHotEncoder(sparse_output=False),['tier'])
+            ],
+            remainder="drop"
+        )
+    }
+    proc_to_fit = ['transform_features']
+    for proc_fit in proc_to_fit:
+        proc[proc_fit].fit(df_train)
+
     # split train data into train and validation datasets
     test_size_val = 0.2
-    df_train, df_val = train_test_split(df_train, test_size = test_size_val, random_state = 42) 
+    df_train, df_val = train_test_split(df_train, test_size = test_size_val, random_state = 42, stratify = df_train['target']) 
 
     # Dataset
-    train_dataset = images_Dataset(df_train, transform_images = proc_images)
-    val_dataset = images_Dataset(df_val, transform_images = proc_images)
+    dataset = features_Dataset
+    train_dataset = dataset(df_train, **proc)
+    val_dataset = dataset(df_val, **proc)
     
     # hyperparameter to optimizate
     search_space = {
         'data_loader': {
             'batch_size': {'type': 'int', 'low': 2, 'high': 5, 'exp2': True},
         },
-        'model': {},
+        'model': {
+            'dropout_rate': {'type': 'float', 'low': 0.1, 'high': 1.0}
+        },
         'optimizer': {
             'lr': {'type': 'float', 'low': 5e-4, 'high': 5e-1, 'log': True},
         },
@@ -75,6 +90,7 @@ def main():
     fixed_params = {
         'data_loader': {},
         'model': {
+            'input_size': 20, 
             'num_classes': 2, 
         },
         'optimizer': {},
@@ -89,20 +105,26 @@ def main():
         'macro_precision': build_scorer(precision_score, average='binary', zero_division = 0)
     }
 
+    train_config = {
+        'num_epochs': 10,
+        'train': ModelTrain,
+        'model': FCNN_shallow,
+        'device': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"), 
+        'criterion': CrossEntropyLoss,
+        'optimizer': Adam,
+        'scoring': scoring
+    }
+
     # objetive function DL
     objective = ObjectiveFunctionDL(
         train_dataset = train_dataset, val_dataset = val_dataset,
-        model = ResNet18_pretrain, 
-        criterion = CrossEntropyLoss,
-        optimizer = Adam,
-        num_epochs = 10,
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"), 
+        train_config = train_config,
         fixed_params=fixed_params,
         search_space=search_space,
-        scoring=scoring,
         score = 'f1_score',
         run_name=run_name
     )
+
     # parameters for study
     study_params = {
         'direction': 'maximize',
@@ -119,15 +141,21 @@ def main():
         'load_if_exists': True  # Continue if study exists
     }
 
+
     # user attributes for study
     user_attr = [
         ('script', f'{sys.argv[0]}'),
-        ('dataset', f'{data_file}'),
-        ('preproc_data', f'{type(process_data)}'),
-        ('split_test', {'test_size': test_size_test}),
-        ('proc_images', f'{type(proc_images)}'),
-        ('split_val', {'test_size': test_size_val}),
-        ('comments', 'ResNet18 pretrained parameters')
+        ('random_state', random_state),
+        ('datafile', f'{data_file}'),
+        ('load', serial_encode(load)),
+        ('preproc', serial_encode(preproc)),
+        ('split_test', test_size_test),
+        ('proc', serial_encode(proc)),
+        ('proc_to_fit', proc_to_fit),
+        ('dataset', serial_encode(dataset)),
+        ('split_val', test_size_val),
+        ('train_config', serial_encode(train_config)),
+        ('comments', 'Shallow FCNN using metadata')
     ]
 
     # create study

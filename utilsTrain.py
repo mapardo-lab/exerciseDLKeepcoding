@@ -8,7 +8,9 @@ from utils import info_object
 
 class ModelTrain():
     def __init__(self, train_config, params, fixed_params = None):
-        self.model = train_config['model'](**params['model'], **fixed_params['model'])
+        self.architecture = train_config['model']
+        self.arch_params = params['model'] | fixed_params['model']
+        self.model = self.architecture(**self.arch_params)
         self.criterion = train_config['criterion'](**params['criterion'], **fixed_params['criterion'])
         self.optimizer = train_config['optimizer'](params = self.model.parameters(), **params['optimizer'], **fixed_params['optimizer'])
         self.device = train_config['device']
@@ -78,22 +80,7 @@ class ModelTrain():
         #return result
 
     def save_model(self, filename):
-        torch.save({
-            'model_state_dict': self.model.state_dict(),
-            'model_architecture': info_object(self.model),
-            #'train_config': info_train(self.train_config)
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            #'epoch': self.num_epochs,
-            'results_train': self.results_train,
-            'results_test': self.results_val,
-        }, filename + '.pth')
-
-    #def load_model(self):
-    #    model = YourModelClass(...)  # Recreate model architecture
-    #    checkpoint = torch.load('model_checkpoint.pth')
-    #    model.load_state_dict(checkpoint['model_state_dict'])
-    #    model.eval()
-    #    pass
+        torch.save(self.model.state_dict(), filename + ".pth")
 
 class ResultTrain:
     """

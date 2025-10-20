@@ -13,7 +13,7 @@ from sklearn.metrics import make_scorer, recall_score, precision_score, f1_score
 
 from utilsFT import MultiLabelBinarizerWrapper
 from utils import set_random_seed, get_column_transformer_info
-from utilsProc import process_data
+from utilsPreproc import process_data
 from utilsOptuna import ObjectiveFunctionML, create_study
 
 def main():
