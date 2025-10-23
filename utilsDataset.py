@@ -12,8 +12,10 @@ class features_Dataset(Dataset):
         self.features = transform_features.transform(df)
         if transform_target is not None:
             self.target = transform_target.transform(self.data)
-        else:
+        elif 'target' in df.columns:
             self.target = np.array(self.data['target'])
+        else:
+            self.target = np.zeros(df.shape[0])
     
     def __len__(self):
         return len(self.target)
@@ -36,8 +38,10 @@ class images_Dataset(Dataset):
         self.transform_images = transform_images
         if transform_target is not None:
             self.target = transform_target.transform(self.data)
-        else:
+        elif 'target' in df.columns:
             self.target = np.array(self.data['target'])
+        else:
+            self.target = np.zeros(df.shape[0])
     
     def __len__(self):
         return len(self.target)
@@ -62,8 +66,10 @@ class multimodal3_Dataset(Dataset):
         self.embeddings  = transform_embeddings.transform(self.data)
         if transform_target is not None:
             self.target = transform_target.transform(self.data)
-        else:
+        elif 'target' in df.columns:
             self.target = np.array(self.data['target'])
+        else:
+            self.target = np.zeros(df.shape[0])
     
     def __len__(self):
         return len(self.target)

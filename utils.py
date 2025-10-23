@@ -3,7 +3,10 @@ import torch
 import random
 import dill
 import base64
+import pickle
+import os
 from sentence_transformers import SentenceTransformer
+from sklearn.metrics import recall_score, precision_score, f1_score, confusion_matrix
 
 def set_random_seed(seed=42): 
   """
@@ -71,3 +74,20 @@ def serial_encode(obj):
 def serial_decode(encoded):
     decoded = dill.loads(base64.b64decode(encoded))
     return decoded
+
+def confusion_matrix_list(y_true, y_pred):
+    return confusion_matrix(y_true, y_pred).tolist()
+
+def save_objects(obj_dict, filename):
+    """Save multiple objects to a file"""
+    with open(filename, 'wb') as f:
+        pickle.dump(obj_dict, f)
+
+def load_objects(filename):
+    """Load objects from a file"""
+    if not os.path.exists(filename):
+        raise FileNotFoundError(filename + ' does not exist.')
+    
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
+    

@@ -4,14 +4,17 @@ import sys
 import pandas as pd
 import optuna
 import torch
+from functools import partial
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.model_selection import train_test_split
 from torch.optim import Adam
 from torch.nn import CrossEntropyLoss
 from sklearn.metrics import recall_score, precision_score, f1_score
 
 from utilsFT import EmbeddingText
-from utils import set_random_seed, build_scorer, serial_encode
-from utilsPreproc import preprocess_data 
+from utils import set_random_seed, confusion_matrix_list, save_objects
+from utilsPreproc import preprocess_features, preprocess_target
 from utilsDataset import features_Dataset
 from utilsNN import FCNN_pca
 from utilsOptuna import ObjectiveFunctionDL, create_study
@@ -23,6 +26,7 @@ def main():
         print("Error: No run name provided")
         print("Usage: script.py <run_name>")
         sys.exit(1)
+    study_name = sys.argv[0].replace('.py','').replace('./','')
     run_name = sys.argv[1]
     
     ## Random reproducibility
@@ -36,8 +40,9 @@ def main():
 
     ## Proprocess data to train/validate model
     # simple process features + create new features
-    preproc = preprocess_data
-    df_processed = preproc(df) 
+    preproc_features = preprocess_features
+    preproc_target = preprocess_target
+    df_processed = preproc_target(preproc_features(df))
     
     # split data into train and test datasets
     test_size_test = 0.2
@@ -58,8 +63,8 @@ def main():
 
     # Dataset
     dataset = features_Dataset
-    train_dataset = features_Dataset(df_train, **proc)
-    val_dataset = features_Dataset(df_val, **proc)
+    train_dataset = dataset(df_train, **proc)
+    val_dataset = dataset(df_val, **proc)
     
     # hyperparameter to optimizate
     search_space = {
@@ -88,10 +93,11 @@ def main():
 
     # scores output
     scoring = {
-        'sensitivity': build_scorer(recall_score, pos_label=1),
-        'precision': build_scorer(precision_score, pos_label=1, zero_division = 0),
-        'f1_score': build_scorer(f1_score, pos_label=1),
-        'macro_precision': build_scorer(precision_score, average='binary', zero_division = 0)
+        'sensitivity': partial(recall_score, pos_label=1),
+        'precision': partial(precision_score, pos_label=1, zero_division = 0),
+        'f1_score': partial(f1_score, pos_label=1),
+        'macro_precision': partial(precision_score, average='binary', zero_division = 0),
+        'confusion_matrix': confusion_matrix_list
     }
 
     train_config = {
@@ -118,7 +124,7 @@ def main():
     study_params = {
         'direction': 'maximize',
         'storage': 'sqlite:///optuna_DL_exercise.db',  # Persistent storage
-        'study_name': sys.argv[0].replace('.py','').replace('./',''),
+        'study_name': study_name,
         'sampler': optuna.samplers.TPESampler(
             n_startup_trials = 10,
             n_ei_candidates = 24,
@@ -130,20 +136,26 @@ def main():
         'load_if_exists': True  # Continue if study exists
     }
 
+    config = {
+        'random_state': random_state,
+        'datafile': data_file,
+        'load': load,
+        'preproc_features': preproc_features,
+        'preproc_target': preproc_target,
+        'split_test': test_size_test,
+        'proc': proc,
+        'proc_to_fit': proc_to_fit,
+        'dataset': dataset,
+        'split_val': test_size_val,
+        'train_config': train_config
+    }
+    file_config = study_name + '.pkl'
+    save_objects(config, file_config)
 
     # user attributes for study
     user_attr = [
         ('script', f'{sys.argv[0]}'),
-        ('random_state', random_state),
-        ('datafile', f'{data_file}'),
-        ('load', serial_encode(load)),
-        ('preproc', serial_encode(preproc)),
-        ('split_test', test_size_test),
-        ('proc', serial_encode(proc)),
-        ('proc_to_fit', proc_to_fit),
-        ('dataset', serial_encode(dataset)),
-        ('split_val', test_size_val),
-        ('train_config', serial_encode(train_config)),
+        ('config_file', file_config),
         ('comments', 'FCNN with Progressive Compression Architecture for embeddings')
     ]
 
@@ -151,7 +163,7 @@ def main():
     study = create_study(study_params, user_attr)
 
     ## run trials
-    study.optimize(objective, n_trials=10)
+    study.optimize(objective, n_trials=3)
     print(f"Completed {len(study.trials)} trials")
     print(f"Best score: {study.best_value:.4f}")
     print(f"Best params: {study.best_trial.params}")

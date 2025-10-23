@@ -2,38 +2,59 @@
 
 import torch
 import optuna
-from utils import serial_decode
+import pandas as pd
+from torch.utils.data import DataLoader
+
+from utilsTrain import TrainModels
 
 def main():
-    # TODO First I have to design a way to save info about all models that have been trained (study, trial, scores, filename weights)
-    # TODO Give to this exe file info about the model I want to run
-    storage = 'sqlite:///optuna_DL_exercise.db'
-    study_name = 'fcnn_shallow_metadata1'
-    study = optuna.load_study(
-        study_name = study_name,
-        storage = storage
-    )
+    # TODO Input for this exe
+    models_trained = TrainModels()
+    config = models_trained.list_of_models['MDL_fcnn_shallow_metadata1_T1']
 
-    print('Loading parameters...')
-    trial = study.best_trial
-    fixed_params = trial.user_attrs['fixed_params']
-    params = trial.user_attrs['params']
-    train_config = serial_decode(study.user_attrs['train_config'])
+    print('Reading data...')
+    df = pd.read_csv('example_dataset.csv')
+
+    print('Preprocessing data...')
+    preproc_features = config['preproc_features']
+    df_preproc = preproc_features(df)
+
+    print('Processing data...')
+    dataset = config['dataset']
+    proc = config['proc']
+    input_dataset = dataset(df_preproc, **proc)
+    dataloader = DataLoader(dataset = input_dataset, shuffle=False, batch_size = 8)
 
     print('Loading model...')
-    architecture = train_config['model']
-    arch_params = params['model'] | fixed_params['model']
+    architecture = config['model']
+    arch_params = config['model_params']
     model = architecture(**arch_params)
 
-    model.load_state_dict(torch.load("prueba.pth", weights_only = True))
-    model.eval()  # set to evaluation mode before inference
-    # TODO Use this model as a API (model deployment)
+    print('Loading parameters...')
+    weights_file = config['weights_file']
+    model.load_state_dict(torch.load(weights_file, weights_only = True))
 
-    # TODO Preprocess + Process data
-    #with torch.no_grad():
-    #    x_new = torch.randn(5, 10)
-    #    predictions = model(x_new)
-    #print(predictions)
+    # TODO Use this model as a API (model deployment)
+    # TODO Refactor ModelTrain/TrainModel. This prediction must be in a function/class
+    print('Making predictions...')
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+    model.eval()
+    predictions = []
+
+    with torch.no_grad():
+        for batch in dataloader:
+            for key, value in batch.items():
+                batch[key] = value.to(device)
+            preds = model(batch)
+            predictions.append(preds.cpu())
+
+    predictions = torch.cat(predictions, dim=0)
+    probs = torch.softmax(predictions, dim=1)
+    classes = torch.argmax(probs, dim=1)
+    print(predictions)
+    print(probs)
+    print(classes)
 
 if __name__ == "__main__":
     main()

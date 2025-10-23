@@ -1,65 +1,73 @@
 #!/usr/bin/env python3
 
 import optuna
-import pandas as pd
-from utils import set_random_seed, serial_decode
+import sys
+from datetime import datetime
+from utils import set_random_seed
 from sklearn.model_selection import train_test_split
-from utilsDataset import features_Dataset
 from torch.utils.data import DataLoader
+from utils import load_objects
+from utilsTrain import TrainModels
 
 def main():
-    # TODO Input storage, studyname, best/number trial
+    # TODO Select best trial or number of trial
+    # Check if study_name argument is provided
+    if len(sys.argv) < 2:
+        print("Error: No study name provided")
+        print("Usage: script.py <study_name>")
+        sys.exit(1)
+    study_name = sys.argv[1]
+
     storage = 'sqlite:///optuna_DL_exercise.db'
-    study_name = 'MDL_fcnn_shallow_metadata1'
     study = optuna.load_study(
         study_name = study_name,
         storage = storage
     )
+    trial = study.best_trial
+    trial_number = trial.number
+    config = load_objects(study_name + '.pkl')
 
     # Random reproducibility
     set_random_seed()
-    random_state = study.user_attrs['random_state']
+    random_state = config['random_state']
 
     # Load dataset
     print('Loading data...')
-    data_file = study.user_attrs['datafile']
-    print(data_file)
-    load = serial_decode(study.user_attrs['load'])
+    data_file = config['datafile']
+    load = config['load']
     df = load(data_file) 
 
     # Proprocess data to train/validate model
     # simple process features + create new features
     print('Preprocessing data...')
-    preproc = serial_decode(study.user_attrs['preproc'])
-    df_preproc = preproc(df) 
+    preproc_features = config['preproc_features']
+    preproc_target = config['preproc_target']
+    df_preproc = preproc_features(preproc_target(df))
     
     # split data into train and test datasets
     print('Splitting dataset in train and test...')
-    test_size_test = study.user_attrs['split_test']
+    test_size_test = config['split_test']
     df_train, df_test = train_test_split(df_preproc, test_size = test_size_test, random_state = random_state, stratify=df_preproc['target'])
-    print(f'Train dataset: {df_train.shape[0]}')
-    print(f'Test dataset: {df_test.shape[0]}')
+    print(f'Train: {df_train.shape[0]}/Test: {df_test.shape[0]}')
 
     # preprocess data Imputation/Encoding/Transformation
     print('Processing data...')
-    proc = serial_decode(study.user_attrs['proc'])
-    # TODO Save this proc_features with fit
-    proc_to_fit = study.user_attrs['proc_to_fit']
+    proc = config['proc']
+    proc_to_fit = config['proc_to_fit']
     for proc_fit in proc_to_fit:
         proc[proc_fit].fit(df_train)
     # Dataset
-    dataset = serial_decode(study.user_attrs['dataset'])
+    dataset = config['dataset']
     train_dataset = dataset(df_train, **proc)
     test_dataset = dataset(df_test, **proc)
 
     # Training
     print('Loading parameters...')
-    trial = study.best_trial
     fixed_params = trial.user_attrs['fixed_params']
     params = trial.user_attrs['params']
 
     # Build TrainModel
-    train_config = serial_decode(study.user_attrs['train_config'])
+    train_config = config['train_config']
     model_train = train_config['train']
     train = model_train(train_config, params, fixed_params)
 
@@ -71,19 +79,32 @@ def main():
     print('Training model...')
     num_epochs = trial.user_attrs['num_epochs']
     train.train_model(num_epochs, train_loader)
+
     # Validate model/Plot
     print('Testing model...')
     train.eval_model(test_loader)
-    # TODO Output train/test
-    # TODO Output confusion matrix
-    # TODO Save model
-    # TODO filename???
-    # TODO Save info model in trial.user_attrs
     print('Saving model...')
-    filename = 'prueba'
-    train.save_model(filename)
-    # TODO list of dictionaries: study, number trial, filename, score
-    trial.set_user_attr('kk', filename)
+    file_weights = study_name + '_T' + str(trial_number)
+    train.save_model(file_weights)
+    print('Writing model info...')
+    models_trained = TrainModels()
+    name = file_weights
+    # TODO Save scores for test
+    info_model = {
+        'study': study_name,
+        'number_trial': trial_number,
+        'data_file': data_file,
+        'preproc_features': preproc_features,
+        'proc': proc,
+        'dataset': dataset,
+        'weights_file': file_weights + '.pth',
+        'model': train_config['model'],
+        'model_params': params['model'] | fixed_params['model'],
+        'date': datetime.now(),
+        'scores': train.results_val.results
+    }
+    models_trained.append_model(name, info_model)
+    models_trained.save()
 
 if __name__ == "__main__":
     main()

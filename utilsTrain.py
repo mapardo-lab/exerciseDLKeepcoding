@@ -1,6 +1,10 @@
+import pandas as pd
 import numpy as np
 import torch
-from utils import info_object
+import matplotlib.pyplot as plt
+from sklearn.metrics import ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+from utils import load_objects, save_objects
 
 #class ModelTrainL1(ModelTrain):
 #    def __init__(self, model, device, criterion, optimizer, scoring, params, fixed_params,):
@@ -110,7 +114,65 @@ class ResultTrain:
             results[score_name] = score_func(y_true, y_pred)
         return results
     
-def plot_training_curves(train_results, val_results):
+class TrainModels:
+    def __init__(self):
+        self.filename = 'list_trained_models.pkl'
+        self.list_of_models = self.load()
+
+    def load(self):
+        result_dict = {}
+        try:
+            result_dict =  load_objects(self.filename)
+        except FileNotFoundError:
+            print(self.filename + ' not found.\nCreating new empty list of trained models')
+        return result_dict
+
+    def append_model(self, name, info):
+        self.list_of_models[name] = info
+        print(f'New trained model added: {name}')
+
+    def save(self):
+        save_objects(self.list_of_models, self.filename)
+
+    def summary(self, score):
+        score = 'f1_score'
+        results ={
+            'model_name': [],
+            'date_train': [],
+            'data_file': [],
+            score: []
+        }
+        for model_name, info in self.list_of_models.items():
+            results['model_name'].append(model_name)
+            results['date_train'].append(info['date'].strftime("%Y-%m-%d %H:%M:%S"))
+            results['data_file'].append(info['data_file'])
+            results[score].append(info['scores'][score][0])
+        return pd.DataFrame(results)
+
+    def info_model(self, model_name):
+        info = self.list_of_models[model_name]
+
+        print(f'Model name: {model_name}')
+        print(f"Date training: {info['date'].strftime('%Y-%m-%d %H:%M:%S')}")
+
+        for score, value in info['scores'].items():
+            if (score != 'loss') & (score != 'confusion_matrix'):
+                print(f'{score}: {round(value[0], 2)}')
+
+        print(f"Confusion matrix: {info['scores']['confusion_matrix'][0]}")
+
+        arr = np.array(info['scores']['confusion_matrix'][0], dtype=float)
+        row_sums = arr.sum(axis=1, keepdims=True)
+        normalized = arr / row_sums
+
+        disp = ConfusionMatrixDisplay(confusion_matrix=normalized)
+        disp.plot(cmap='Blues')
+        im = disp.im_  
+        im.set_clim(0, 1) 
+        plt.title('Confusion Matrix')
+        plt.show()
+
+def plot_training_curves(train_losses, val_losses, train_score, val_score, num_epochs, score, test_score=None):
   """
   From the model training output, the training progress is plotted 
   for loss function and accuracy values. Optionally, accuracy for
@@ -119,19 +181,19 @@ def plot_training_curves(train_results, val_results):
   plt.style.use("ggplot")
   plt.figure(figsize=(12, 5))
   plt.subplot(1, 2, 1)
-  plt.plot(range(num_epochs), train_losses, label="Train Loss")
-  plt.plot(range(num_epochs), val_losses, label="Validation Loss")
-  plt.title("Training and Validation Loss")
+  plt.plot(range(num_epochs), train_losses, label="Train loss")
+  plt.plot(range(num_epochs), val_losses, label="Validation loss")
+  plt.title("Training and validation loss")
   plt.xlabel("Epoch #")
   plt.ylabel("Loss")
   plt.legend()
 
   plt.subplot(1, 2, 2)
-  plt.plot(range(num_epochs), train_accs, label="Train Accuracy")
-  plt.plot(range(num_epochs), val_accs, label="Validation Accuracy")
-  if test_acc is not None:
-    plt.axhline(y=test_acc, color='red', linestyle='--', label='Test Accuracy')
-  plt.title("Training and Validation Accuracy")
+  plt.plot(range(num_epochs), train_score, label="Train " + score)
+  plt.plot(range(num_epochs), val_score, label="Validation " + score)
+  if test_score is not None:
+    plt.axhline(y=test_score, color='red', linestyle='--', label='Test Accuracy')
+  plt.title("Training and validation " + score)
   plt.xlabel("Epoch #")
   plt.ylabel("Accuracy")
   plt.legend()

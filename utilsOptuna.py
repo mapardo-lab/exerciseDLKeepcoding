@@ -365,17 +365,18 @@ def save_metrics_optuna(trial, results, outputdir):
   # save path for output as user parameter
   trial.set_user_attr("metrics_path", output_metrics_file)
     
-def plot_train_nn(trial):
+def plot_train_nn(trial, score):
     """
     Plot training and validation curves from neural network training results stored in an Optuna trial.
     """
-    df = pd.DataFrame(trial.user_attrs['train_results'])
-    train_losses = df['train_losses']
-    val_losses = df['val_losses']
-    train_accs = df['train_accs']
-    val_accs = df['val_accs']
-    num_epochs = df.shape[0]
-    plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs, test_acc=None)
+    train_results = pd.DataFrame(trial.user_attrs['train_results'])
+    val_results = pd.DataFrame(trial.user_attrs['val_results'])
+    train_losses = train_results['loss']
+    val_losses = val_results['loss']
+    train_score = train_results[score]
+    val_score = val_results[score]
+    num_epochs = len(train_results)
+    plot_training_curves(train_losses, val_losses, train_score, val_score, num_epochs, score)
 
 def best_trial_scores_ML(study, list_scores): 
     """
