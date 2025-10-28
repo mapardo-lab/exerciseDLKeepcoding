@@ -6,10 +6,6 @@ from sklearn.metrics import ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 from utils import load_objects, save_objects
 
-#class ModelTrainL1(ModelTrain):
-#    def __init__(self, model, device, criterion, optimizer, scoring, params, fixed_params,):
-#        super().__init__(model, device, criterion, optimizer, scoring, params, fixed_params)
-# TODO Implement ModelReg from ModelBase
 class ModelBase():
     def __init__(self, model_config, params, fixed_params = None):
         self.architecture = model_config['architecture']
@@ -79,6 +75,60 @@ class ModelBase():
 
     def save_model(self, filename):
         torch.save(self.model.state_dict(), filename + ".pth")
+
+class ModelL1(ModelBase):
+    def __init__(self, model_config, params, fixed_params = None):
+        super().__init__(model_config, params, fixed_params)
+        self.l1_lambda = params['regularization'].get('l1_lambda', fixed_params['regularization'].get('l1_lambda', 0.01))
+    def train_epoch(self, train_loader): 
+        self.model.train()
+        train_loss = 0
+        y_pred = np.array([])
+        y_true = np.array([])
+
+        for data in train_loader:
+            for key, value in data.items():
+                data[key] = value.to(self.device)
+            self.optimizer.zero_grad()
+            output = self.model(data)
+            loss = self.criterion(output, data['target'])
+            l1_penalty = sum(p.abs().sum() for p in self.model.parameters())
+            loss += self.l1_lambda * l1_penalty
+            loss.backward()
+            self.optimizer.step()
+            train_loss += loss.item()
+            _, predicted = output.max(1)
+            y_true = np.concatenate([y_true, data['target'].cpu().numpy()])
+            y_pred = np.concatenate([y_pred, predicted.cpu().numpy()])
+
+        self.results_train.update(train_loss, y_true, y_pred)
+
+class ModelL2(ModelBase):
+    def __init__(self, model_config, params, fixed_params = None):
+        super().__init__(model_config, params, fixed_params)
+        self.l2_lambda = params['regularization'].get('l2_lambda', fixed_params['regularization'].get('l2_lambda', 0.01))
+    def train_epoch(self, train_loader): 
+        self.model.train()
+        train_loss = 0
+        y_pred = np.array([])
+        y_true = np.array([])
+
+        for data in train_loader:
+            for key, value in data.items():
+                data[key] = value.to(self.device)
+            self.optimizer.zero_grad()
+            output = self.model(data)
+            loss = self.criterion(output, data['target'])
+            l2_penalty = sum((p ** 2).sum() for p in self.model.parameters())
+            loss += self.l2_lambda * l2_penalty
+            loss.backward()
+            self.optimizer.step()
+            train_loss += loss.item()
+            _, predicted = output.max(1)
+            y_true = np.concatenate([y_true, data['target'].cpu().numpy()])
+            y_pred = np.concatenate([y_pred, predicted.cpu().numpy()])
+
+        self.results_train.update(train_loss, y_true, y_pred)
 
 class StatsModel:
     """

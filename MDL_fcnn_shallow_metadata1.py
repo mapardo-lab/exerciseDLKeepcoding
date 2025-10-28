@@ -18,7 +18,7 @@ from utilsPreproc import preprocess_features, preprocess_target
 from utilsDataset import features_Dataset
 from utilsNN import FCNN_shallow
 from utilsOptuna import ObjectiveFunctionDL, create_study
-from utilsModel import ModelBase
+from utilsModel import *
 
 def main():
     ## Check if run_name argument is provided
@@ -86,7 +86,10 @@ def main():
         'optimizer': {
             'lr': {'type': 'float', 'low': 5e-4, 'high': 5e-1, 'log': True},
         },
-        'criterion': {}
+        'criterion': {},
+        'regularization': {
+            'l2_lambda': {'type': 'float', 'low': 5e-4, 'high': 1.0, 'log': True}
+        }
     }
 
     # fixed hyperparameters
@@ -97,7 +100,8 @@ def main():
             'num_classes': 2, 
         },
         'optimizer': {},
-        'criterion': {}
+        'criterion': {},
+        'regularization': {}
     }
 
     # scores output
@@ -111,7 +115,7 @@ def main():
 
     model_config = {
         'num_epochs': 10,
-        'train': ModelBase,
+        'train': ModelL2,
         'architecture': FCNN_shallow,
         'device': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"), 
         'criterion': CrossEntropyLoss,
@@ -172,7 +176,7 @@ def main():
     study = create_study(study_params, user_attr)
 
     ## run trials
-    study.optimize(objective, n_trials=3)
+    study.optimize(objective, n_trials=10)
     print(f"Completed {len(study.trials)} trials")
     print(f"Best score: {study.best_value:.4f}")
     print(f"Best params: {study.best_trial.params}")
