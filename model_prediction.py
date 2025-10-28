@@ -5,7 +5,7 @@ import optuna
 import pandas as pd
 from torch.utils.data import DataLoader
 
-from utilsTrain import TrainModels
+from utilsModel import TrainModels
 
 def main():
     # TODO Input for this exe

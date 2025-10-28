@@ -7,7 +7,7 @@ from utils import set_random_seed
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 from utils import load_objects
-from utilsTrain import TrainModels
+from utilsModel import TrainModels
 
 def main():
     # TODO Select best trial or number of trial
@@ -66,10 +66,10 @@ def main():
     fixed_params = trial.user_attrs['fixed_params']
     params = trial.user_attrs['params']
 
-    # Build TrainModel
-    train_config = config['train_config']
-    model_train = train_config['train']
-    train = model_train(train_config, params, fixed_params)
+    # Build Model
+    model_config = config['model_config']
+    model_train = model_config['train']
+    train = model_train(model_config, params, fixed_params)
 
     # Build DataLoader
     train_loader = DataLoader(dataset = train_dataset, shuffle=True, **params['data_loader'], **fixed_params['data_loader']) 
@@ -98,8 +98,8 @@ def main():
         'proc': proc,
         'dataset': dataset,
         'weights_file': file_weights + '.pth',
-        'model': train_config['model'],
-        'model_params': params['model'] | fixed_params['model'],
+        'model': model_config['architecture'],
+        'model_params': params['architecture'] | fixed_params['architecture'],
         'date': datetime.now(),
         'scores': train.results_val.results
     }

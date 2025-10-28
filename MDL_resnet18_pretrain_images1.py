@@ -14,7 +14,7 @@ from utils import set_random_seed, build_scorer, serial_encode
 from utilsPreproc import preprocess_data 
 from utilsDataset import images_Dataset
 from utilsOptuna import ObjectiveFunctionDL, create_study
-from utilsTrain import ModelTrain
+from utilsModel import ModelTrain
 from utilsNN import ResNet18_pretrain
 
 def main():
@@ -104,7 +104,7 @@ def main():
     # objetive function DL
     objective = ObjectiveFunctionDL(
         train_dataset = train_dataset, val_dataset = val_dataset,
-        train_config = train_config,
+        model_config = train_config,
         fixed_params=fixed_params,
         search_space=search_space,
         score = 'f1_score',

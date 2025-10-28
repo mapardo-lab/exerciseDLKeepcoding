@@ -18,7 +18,7 @@ from utilsPreproc import preprocess_features, preprocess_target
 from utilsDataset import features_Dataset
 from utilsNN import FCNN_pca
 from utilsOptuna import ObjectiveFunctionDL, create_study
-from utilsTrain import ModelTrain
+from utilsModel import ModelTrain
 
 def main():
     ## Check if run_name argument is provided
@@ -113,7 +113,7 @@ def main():
     # objetive function DL
     objective = ObjectiveFunctionDL(
         train_dataset = train_dataset, val_dataset = val_dataset,
-        train_config = train_config,
+        model_config = train_config,
         fixed_params=fixed_params,
         search_space=search_space,
         score = 'f1_score',

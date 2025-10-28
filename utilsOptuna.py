@@ -7,8 +7,8 @@ import pickle
 import statistics
 from sklearn.model_selection import cross_validate
 from torch.utils.data import DataLoader
-from utilsTrain import plot_training_curves
-from utilsTrain import ResultTrain
+from utilsModel import plot_training_curves
+from utilsModel import StatsModel
 
 class ObjectiveFunction():
     """
@@ -95,14 +95,14 @@ class ObjectiveFunctionDL(ObjectiveFunction):
     """
     Objective function for deep learning models with training loop and pruning capabilities.
     """
-    def __init__(self, train_dataset, val_dataset, train_config, 
+    def __init__(self, train_dataset, val_dataset, model_config, 
                  fixed_params, search_space, score, run_name):
         super().__init__(fixed_params, search_space, score, run_name)
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
-        self.train = train_config['train']
-        self.train_config = train_config
-        self.num_epochs = train_config['num_epochs']
+        self.train = model_config['train']
+        self.train_config = model_config
+        self.num_epochs = model_config['num_epochs']
       
     def __call__(self, trial):
         params = self.get_optimizable_params(trial)

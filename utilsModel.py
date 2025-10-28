@@ -9,19 +9,19 @@ from utils import load_objects, save_objects
 #class ModelTrainL1(ModelTrain):
 #    def __init__(self, model, device, criterion, optimizer, scoring, params, fixed_params,):
 #        super().__init__(model, device, criterion, optimizer, scoring, params, fixed_params)
-
-class ModelTrain():
-    def __init__(self, train_config, params, fixed_params = None):
-        self.architecture = train_config['model']
-        self.arch_params = params['model'] | fixed_params['model']
+# TODO Implement ModelReg from ModelBase
+class ModelBase():
+    def __init__(self, model_config, params, fixed_params = None):
+        self.architecture = model_config['architecture']
+        self.arch_params = params['architecture'] | fixed_params['architecture']
         self.model = self.architecture(**self.arch_params)
-        self.criterion = train_config['criterion'](**params['criterion'], **fixed_params['criterion'])
-        self.optimizer = train_config['optimizer'](params = self.model.parameters(), **params['optimizer'], **fixed_params['optimizer'])
-        self.device = train_config['device']
+        self.criterion = model_config['criterion'](**params['criterion'], **fixed_params['criterion'])
+        self.optimizer = model_config['optimizer'](params = self.model.parameters(), **params['optimizer'], **fixed_params['optimizer'])
+        self.device = model_config['device']
         self.model.to(self.device)
-        self.scoring = train_config['scoring']
-        self.results_train = ResultTrain(self.scoring)
-        self.results_val = ResultTrain(self.scoring)
+        self.scoring = model_config['scoring']
+        self.results_train = StatsModel(self.scoring)
+        self.results_val = StatsModel(self.scoring)
 
     def train_epoch(self, train_loader): 
         """
@@ -77,16 +77,10 @@ class ModelTrain():
         for epoch in range(num_epochs):
             self.train_epoch(train_loader)
 
-        #if testloader is not None:
-        #    accuracy = evaluate_model(model, testloader, device)
-        #    plot_training_curves(train_losses, val_losses, train_accs, val_accs, num_epochs, test_acc = accuracy) 
-
-        #return result
-
     def save_model(self, filename):
         torch.save(self.model.state_dict(), filename + ".pth")
 
-class ResultTrain:
+class StatsModel:
     """
     Tracks and accumulates training and validation metrics throughout the training process.
     """

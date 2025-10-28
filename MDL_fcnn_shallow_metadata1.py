@@ -18,7 +18,7 @@ from utilsPreproc import preprocess_features, preprocess_target
 from utilsDataset import features_Dataset
 from utilsNN import FCNN_shallow
 from utilsOptuna import ObjectiveFunctionDL, create_study
-from utilsTrain import ModelTrain
+from utilsModel import ModelBase
 
 def main():
     ## Check if run_name argument is provided
@@ -80,7 +80,7 @@ def main():
         'data_loader': {
             'batch_size': {'type': 'int', 'low': 2, 'high': 5, 'exp2': True},
         },
-        'model': {
+        'architecture': {
             'dropout_rate': {'type': 'float', 'low': 0.1, 'high': 1.0}
         },
         'optimizer': {
@@ -92,7 +92,7 @@ def main():
     # fixed hyperparameters
     fixed_params = {
         'data_loader': {},
-        'model': {
+        'architecture': {
             'input_size': 20, 
             'num_classes': 2, 
         },
@@ -109,10 +109,10 @@ def main():
         'confusion_matrix': confusion_matrix_list
     }
 
-    train_config = {
+    model_config = {
         'num_epochs': 10,
-        'train': ModelTrain,
-        'model': FCNN_shallow,
+        'train': ModelBase,
+        'architecture': FCNN_shallow,
         'device': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"), 
         'criterion': CrossEntropyLoss,
         'optimizer': Adam,
@@ -122,7 +122,7 @@ def main():
     # objetive function DL
     objective = ObjectiveFunctionDL(
         train_dataset = train_dataset, val_dataset = val_dataset,
-        train_config = train_config,
+        model_config = model_config,
         fixed_params=fixed_params,
         search_space=search_space,
         score = 'f1_score',
@@ -156,7 +156,7 @@ def main():
         'proc_to_fit': proc_to_fit,
         'dataset': dataset,
         'split_val': test_size_val,
-        'train_config': train_config
+        'model_config': model_config
     }
     file_config = study_name + '.pkl'
     save_objects(config, file_config)
