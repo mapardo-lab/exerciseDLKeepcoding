@@ -12,25 +12,21 @@ preproc_target:
   function: 'preprocess_target'
 test_size_test: 0.2
 proc:
-  transform_features:
+  transform_images:
     module: 'utilsFT'
-    class: 'TransformMetadata'
-    function: 'get_transformation'
-    parameters: {'name': 'transform01'}
-proc_to_fit:
-  - 'transform_features'
+    class: 'ImagesResNet18Transform'
+    parameters: {'image_path': 'main_image_path'}
+proc_to_fit: []
 test_size_val: 0.2
 dataset:
   module: 'utilsDataset'
-  class: 'features_Dataset'
+  class: 'images_Dataset'
 search_space: 
   {
     'data_loader': {
         'batch_size': {'type': 'int', 'low': 2, 'high': 5, 'exp2': True},
     },
-    'architecture': {
-        'dropout_rate': {'type': 'float', 'low': 0.1, 'high': 1.0}
-    },
+    'architecture': {},
     'optimizer': {
         'lr': {'type': 'float', 'low': 0.0005, 'high': 0.5, 'log': True},
     },
@@ -40,8 +36,7 @@ fixed_params:
   {
     'data_loader': {},
     'architecture': {
-        'input_size': 20, 
-        'num_classes': 2, 
+        'num_classes': 2
     },
     'optimizer': {},
     'criterion': {}
@@ -74,7 +69,7 @@ model_config:
     class: 'ModelBase'
   architecture:
     module: 'utilsNN'
-    class: 'FCNN_shallow'
+    class: 'ResNet18_layer4'
   criterion: 
     module: 'torch.nn'
     function: 'CrossEntropyLoss'
@@ -82,5 +77,5 @@ model_config:
     module: 'torch.optim'
     function: 'Adam'
 score: 'f1_score'
-comments: 'Shallow FCNN using metadata'
-num_trials: 20
+comments: 'ResNet18 layer4 parameters optimization'
+num_trials: 10

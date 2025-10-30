@@ -1,5 +1,6 @@
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.preprocessing import MultiLabelBinarizer, StandardScaler, OneHotEncoder, MinMaxScaler
+from sklearn.compose import ColumnTransformer
 from sentence_transformers import SentenceTransformer
 import torchvision.transforms as transforms
 import cv2
@@ -85,3 +86,37 @@ class MultiLabelBinarizerWrapper(BaseEstimator, TransformerMixin):
         
         # Extract the single column
         return X.squeeze()
+        from sklearn.compose import ColumnTransformer
+
+class TransformMetadata:
+    """Factory to create different transformation configurations"""
+    
+    @staticmethod
+    def get_transformation(name):
+        """Get different transformation configurations"""
+        
+        transformations = {
+            'transform01': ColumnTransformer(
+                transformers=[
+                    ('numerical', StandardScaler(), ['xps', 'locationLon', 'locationLat', 'NumTags']),
+                    ('categories', MultiLabelBinarizerWrapper(), ['categories']), 
+                    ('tier', OneHotEncoder(sparse_output=False), ['tier'])
+                ],
+                remainder="drop"
+            ),
+            
+            'transform02': ColumnTransformer(
+                transformers=[
+                    ('numerical', MinMaxScaler(), ['xps', 'locationLon', 'locationLat', 'NumTags']),
+                    ('categories', MultiLabelBinarizerWrapper(), ['categories']), 
+                    ('tier', OneHotEncoder(sparse_output=False), ['tier'])
+                ],
+                remainder="drop"
+            )
+        }
+        
+        if name not in transformations:
+            raise ValueError(f"Unknown transformation: {name}. "
+                           f"Available: {list(transformations.keys())}")
+        
+        return transformations[name]

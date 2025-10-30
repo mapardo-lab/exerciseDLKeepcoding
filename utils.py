@@ -5,8 +5,11 @@ import dill
 import base64
 import pickle
 import os
+import yaml
+import importlib
+from functools import partial
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics import recall_score, precision_score, f1_score, confusion_matrix
+from sklearn.metrics import confusion_matrix
 
 def set_random_seed(seed=42): 
   """
@@ -91,3 +94,65 @@ def load_objects(filename):
     with open(filename, 'rb') as f:
         return pickle.load(f)
     
+def load_yaml_config(file_path: str):
+    """
+    Load and parse YAML configuration file
+    
+    Args:
+        file_path (str): Path to the YAML file
+        
+    Returns:
+        Dict[str, Any]: Parsed configuration data
+    """
+    try:
+        with open(file_path, 'r') as file:
+            config = yaml.safe_load(file)
+        return config
+    except FileNotFoundError:
+        print(f"Error: Configuration file '{file_path}' not found.")
+        return {}
+    except yaml.YAMLError as e:
+        print(f"Error parsing YAML file: {e}")
+        return {}
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return {}
+
+def load_from_config(config):
+    if 'class' in config:
+        return load_class_from_config(config)
+    elif 'function' in config:
+        return load_function_from_config(config)
+    
+def load_function_from_config(config):
+    module_name = config['module']
+    function_name = config['function']
+    module = importlib.import_module(module_name)
+    function = getattr(module, function_name)
+    if 'parameters' in config:
+        return partial(function, **config['parameters'])
+    else:
+        return function
+
+def load_class_from_config(config):
+    module_name = config['module']
+    class_name = config['class']
+    module = importlib.import_module(module_name)
+    class_load = getattr(module, class_name)
+    if 'function' in config:
+        function_name = config['function']
+        function = getattr(class_load, function_name)
+        return function(**config['parameters'])
+    elif 'parameters' in config:
+        return class_load(**config['parameters'])
+    else:
+        return class_load
+
+def load_dict_from_config(config):
+    result = {}
+    for key, value in config.items():
+        if isinstance(value, dict) and 'module' in value:
+            result[key] = load_from_config(value)
+        else:
+            result[key] = value
+    return result

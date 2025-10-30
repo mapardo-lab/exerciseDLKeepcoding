@@ -11,14 +11,16 @@ preproc_target:
   module: 'utilsPreproc'
   function: 'preprocess_target'
 test_size_test: 0.2
+
 proc:
   transform_features:
     module: 'utilsFT'
-    class: 'TransformMetadata'
-    function: 'get_transformation'
-    parameters: {'name': 'transform01'}
-proc_to_fit:
-  - 'transform_features'
+    class: 'EmbeddingText'
+    parameters: {'feature': 'shortDescription', 
+                 'model_name': 'all-MiniLM-L6-v2'}
+
+proc_to_fit: []
+
 test_size_val: 0.2
 dataset:
   module: 'utilsDataset'
@@ -40,12 +42,13 @@ fixed_params:
   {
     'data_loader': {},
     'architecture': {
-        'input_size': 20, 
+        'input_size': 384, 
         'num_classes': 2, 
     },
     'optimizer': {},
     'criterion': {}
   }
+
 scoring:
   f1_score:
     module: 'sklearn.metrics'
@@ -66,7 +69,9 @@ scoring:
   confusion_matrix:
     module: 'utils'
     function: 'confusion_matrix_list'
+
 device: 'gpu'
+
 model_config:
   num_epochs: 10
   train:
@@ -74,13 +79,15 @@ model_config:
     class: 'ModelBase'
   architecture:
     module: 'utilsNN'
-    class: 'FCNN_shallow'
+    class: 'FCNN_pca'
   criterion: 
     module: 'torch.nn'
     function: 'CrossEntropyLoss'
   optimizer:
     module: 'torch.optim'
     function: 'Adam'
+
 score: 'f1_score'
-comments: 'Shallow FCNN using metadata'
+comments: 'FCNN with Progressive Compression Architecture for embeddings'
 num_trials: 20
+

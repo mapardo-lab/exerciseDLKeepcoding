@@ -184,8 +184,7 @@ class ResNet18_layer4(nn.Module):
         x = self.network(x)
         return x 
 
-
-class MultiModal3Class2(nn.Module):
+class MultiModal3_pre_Class2(nn.Module):
     """A multi-modal neural network for binary classification using three data modalities.
 
     This model processes three different types of input data through separate branches:
@@ -194,7 +193,43 @@ class MultiModal3Class2(nn.Module):
     are combined for final classification.
     """
     def __init__(self, metadata_input, embeddings_input, dropout_rate):
-        super(MultiModal3Class2, self).__init__()
+        super(MultiModal3_pre_Class2, self).__init__()
+        
+        # Images branch
+        self.branch_images = CommonBlocks.get_ResNet18_pre_classifier()
+        images_size = CommonBlocks.last_layer_input(self.branch_images)        
+        self.branch_images.fc = nn.Identity()
+        
+        # Embeddings branch
+        fcnn_pca_classifier = CommonBlocks.get_fcnn_pca_classifier(embeddings_input, dropout=dropout_rate)
+        embeddings_size = CommonBlocks.last_layer_input(fcnn_pca_classifier)        
+        self.branch_embeddings = nn.Sequential(*list(fcnn_pca_classifier.children())[:-1])
+        
+        total_features = images_size + embeddings_size + metadata_input
+    
+        # Classificator: Fully connected layer
+        self.classifier = CommonBlocks.get_fcnn_pca_classifier(total_features, 2, dropout_rate)
+    
+    def forward(self, data):
+        x_images = data['images']
+        x_images = self.branch_images(x_images)
+        x_embeddings = data['embeddings']
+        x_embeddings = self.branch_embeddings(x_embeddings)
+        x_metadata = data['metadata']
+        x = torch.cat((x_images, x_embeddings, x_metadata), dim = 1)
+        x = self.classifier(x)
+        return x
+
+class MultiModal3_layer4_Class2(nn.Module):
+    """A multi-modal neural network for binary classification using three data modalities.
+
+    This model processes three different types of input data through separate branches:
+    images through a ResNet18 backbone with layer4 optimization, embeddings through a 
+    fully connected network, and metadata through direct concatenation. 
+    The features from all three branches are combined for final classification.
+    """
+    def __init__(self, metadata_input, embeddings_input, dropout_rate):
+        super(MultiModal3_layer4_Class2, self).__init__()
         
         # Images branch
         self.branch_images = CommonBlocks.get_ResNet18_layer4_classifier()
@@ -220,3 +255,4 @@ class MultiModal3Class2(nn.Module):
         x = torch.cat((x_images, x_embeddings, x_metadata), dim = 1)
         x = self.classifier(x)
         return x
+
