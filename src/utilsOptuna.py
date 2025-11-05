@@ -7,7 +7,6 @@ import statistics
 from pprint import pprint
 from sklearn.model_selection import cross_validate
 from torch.utils.data import DataLoader
-from utilsModel import plot_training_curves
 from utilsModel import StatsModel
 from collections import Counter
 from optuna.trial import TrialState
@@ -175,6 +174,43 @@ def info_studies_from_storage(db_url):
     
     return pd.DataFrame(studies_data)
 
+def best_trial_scores_ML(db_url, list_scores, list_studies): 
+    """
+    Retrieves and computes the performance metrics from the best trial in an Optuna study (Machine Learning), 
+    returning the model name along with the mean training and validation scores rounded 
+    to three decimal places for concise evaluation. 
+    """
+    storage = optuna.storages.RDBStorage(url=db_url)
+
+    results = []
+    for study_name in list_studies:
+        study = optuna.load_study(study_name = study_name, storage = storage)
+        results_study = [study.study_name]
+        for score in list_scores:
+            results_study.append(round(statistics.mean(study.best_trial.user_attrs['train_results'][score]), 3))
+        results.append(results_study)
+    return results
+
+def best_trial_scores_DL(db_url, list_scores, list_studies): 
+    """
+    Retrieves and computes the performance metrics from the best trial in an Optuna study (Deep Learning), 
+    returning the model name along with the mean training and validation scores rounded 
+    to three decimal places for concise evaluation. 
+    """
+    storage = optuna.storages.RDBStorage(url=db_url)
+
+    results = []
+    for study_name in list_studies:
+        study = optuna.load_study(study_name = study_name, storage = storage)
+        score = study.best_trial.user_attrs['score']
+        results_study = [study.study_name]
+        results_study.append(round(study.best_trial.user_attrs['train_results'][score][-1], 3))
+        results_study.append(round(study.best_trial.user_attrs['val_results'][score][-1], 3))
+        for score in list_scores:
+            results_study.append(round(study.best_trial.user_attrs['val_results'][score][-1], 3))
+        results.append(results_study)
+    return results
+
 class Study():
     def __init__(self, storage, study_name):
         self.storage = storage
@@ -326,7 +362,6 @@ class Study():
         plt.subplot(1, 2, 2)
         plt.plot(range(num_epochs), train_score, label="Train")
         plt.plot(range(num_epochs), val_score, label="Validation")
-        #plt.title("Training and validation " + score)
         plt.xlabel("Epoch #")
         plt.ylabel(score)
         plt.legend()
@@ -551,30 +586,3 @@ def plot_train_nn(trial, score):
     num_epochs = len(train_results)
     plot_training_curves(train_losses, val_losses, train_score, val_score, num_epochs, score)
 
-def best_trial_scores_ML(study, list_scores): 
-    """
-    Retrieves and computes the performance metrics from the best trial in an Optuna study (Machine Learning), 
-    returning the model name along with the mean training and validation scores rounded 
-    to three decimal places for concise evaluation. 
-    """
-    results = []
-
-    model = study.best_trial.user_attrs['model'].split('.')[-1].replace("'>","")
-    results.append(model)
-    for score in list_scores:
-        results.append(round(statistics.mean(study.best_trial.user_attrs['train_results'][score]), 3))
-    return results
-
-def best_trial_scores_DL(study, list_scores): 
-    """
-    Retrieves and computes the performance metrics from the best trial in an Optuna study (Deep Learning), 
-    returning the model name along with the mean training and validation scores rounded 
-    to three decimal places for concise evaluation. 
-    """
-    results = []
-
-    model = study.best_trial.user_attrs['model'].split('.')[-1].replace("'>","")
-    results.append(model)
-    for score in list_scores:
-        results.append(round(study.best_trial.user_attrs['train_results'][score][-1], 3))
-    return results
