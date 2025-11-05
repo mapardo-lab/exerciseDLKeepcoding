@@ -1,14 +1,16 @@
-import numpy  as np  
 import pandas as pd
 import matplotlib.pyplot as plt
 import optuna
 import os
 import pickle
 import statistics
+from pprint import pprint
 from sklearn.model_selection import cross_validate
 from torch.utils.data import DataLoader
 from utilsModel import plot_training_curves
 from utilsModel import StatsModel
+from collections import Counter
+from optuna.trial import TrialState
 
 class ObjectiveFunction():
     """
@@ -172,7 +174,235 @@ def info_studies_from_storage(db_url):
         studies_data.append(study_info)
     
     return pd.DataFrame(studies_data)
+
+class Study():
+    def __init__(self, storage, study_name):
+        self.storage = storage
+        self.study_name = study_name
+        self.study = self._load_study()
+        self.config_study = self._get_config_study()
+        self.list_runs = self._build_list_runs()
+
+    def show_study_config(self):
+        print(f'Showing {self.study_name} study...')
+        print(self.study.user_attrs['comments'])
+        pprint(self.config_study, sort_dicts = False)
+
+    def _get_config_study(self):
+        config_file = self.study.user_attrs['config_file']
+        if not os.path.exists(config_file):
+            raise FileNotFoundError(config_file + ' does not exist.')
+        with open(config_file, 'rb') as f:
+            return pickle.load(f)
+
+    def _load_study(self):
+        print(f'Loading {self.study_name} study...\n')
+        study = optuna.load_study(
+            study_name = self.study_name,
+            storage = self.storage
+        )
+        return study
+
+    def _build_list_runs(self):
+        list_runs_name = set([trial.user_attrs.get('run', None) for trial in self.study.trials])
+        list_runs = {}
+        for run_name in list_runs_name:
+            trials = []
+            for trial in self.study.trials:
+                name = trial.user_attrs.get('run', None)
+                if name == run_name:
+                    trials.append(trial)
+            list_runs[run_name] = Run(trials)
+        return list_runs
+
+    def show_runs(self):
+        print(f'Showing {self.study_name} study...')
+        result = {
+            'name_run': [],
+            'start': [],
+            'complete': [],
+            'pruned': [],
+            'fail': [],
+            'total': [],
+            'best_score': []
+        }
+        for name, run in self.list_runs.items():
+            result['name_run'].append(name)
+            result['start'].append(run.start)
+            state = run.get_state()
+            result['complete'].append(state[0])
+            result['pruned'].append(state[1])
+            result['fail'].append(state[2])
+            result['total'].append(state[3])
+            result['best_score'].append(round(run.best_score, 3))
+        df = pd.DataFrame(result)
+        
+        return df.sort_values('start')
+
+    def show_runs_extended(self):
+        print(f'Showing {self.study_name} study...')
+        for name, run in self.list_runs.items():
+            print(f'\nrun\t\tstart\t\t\tC/P/F\tbest')
+            state = run.get_state()
+            print(f'{name}\t{run.start}\t{state[0]}/{state[1]}/{state[2]}\t{round(run.best_score, 3)}')
+            print('Optimized')
+            pprint(run.trials[0].distributions)
+            print('Fixed')
+            pprint(run.trials[0].user_attrs['fixed_params'])
+
+    def show_best_result_study(self):
+        """
+        Prints the best trial results from an Optuna study, 
+        including hyperparameter values
+        """
+        print(f'Showing {self.study_name} study...')
+        print("Best trial:")
+        trial = self.study.best_trial
+
+        print("  Number: ", trial.number)
+        print("  Value: ", trial.value)
+        print("  Params: ")
+        for key, value in trial.params.items():
+            print(f"    {key}:\t{value:.5f}")
+
+    def plot_slice(self):
+        """
+        Generate slice plots of objective values versus specified hyperparameters for a study's completed trials.
+        """
+        print(f'Showing {self.study_name} study...')
+        # TODO Carefull not more than six hyperparameters
+        trials = self.study.trials
+        params = self.get_params_log()
+        values = self.get_params_score()
+
+        # Columns to plot
+        n_plots = len(params)
+        
+        # Create subplots
+        fig, axes = plt.subplots(1, n_plots, figsize=(2*n_plots, 4), sharey=True)
+        axes = axes.flatten()
+
+        best_score =max(values['score'])
+        
+        i = 0
+        for param, log in params.items():
+            axes[i].axhline(y=best_score, color='red', linestyle='--', linewidth=2, alpha=0.3)
+            axes[i].scatter(values[param], values['score'], alpha=0.9, color='lightblue', s=30, edgecolor='grey')
+            axes[i].set_xlabel(param)
+            axes[i].set_ylabel('Objetive value')
+            axes[i].grid(True, alpha=0.3)     
+            if log:
+                axes[i].set_xscale('log')
+            # Hide y-axis label for all except first plot
+            if i > 0:
+                axes[i].set_ylabel('')
+            i = i + 1
+
+        plt.tight_layout()
+        plt.show()
+
+    def plot_training_curves(self, number, score):
+        """
+        From the model training output, the training progress is plotted 
+        for loss function and accuracy values. Optionally, accuracy for
+        the test is also plotted.
+        """
+        trial = self.study.trials[number]
+        train_loss = trial.user_attrs['train_results']['loss']
+        train_score = trial.user_attrs['train_results'][score]
+        val_loss = trial.user_attrs['val_results']['loss']
+        val_score = trial.user_attrs['val_results'][score]
+        num_epochs = len(train_loss)
+        plt.style.use("ggplot")
+        plt.figure(figsize=(12, 5))
+        plt.subplot(1, 2, 1)
+        plt.plot(range(num_epochs), train_loss, label="Train loss")
+        plt.plot(range(num_epochs), val_loss, label="Validation loss")
+        plt.title("Training and validation loss")
+        plt.xlabel("Epoch #")
+        plt.ylabel("Loss")
+        plt.legend()
+
+        plt.subplot(1, 2, 2)
+        plt.plot(range(num_epochs), train_score, label="Train")
+        plt.plot(range(num_epochs), val_score, label="Validation")
+        #plt.title("Training and validation " + score)
+        plt.xlabel("Epoch #")
+        plt.ylabel(score)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
     
+
+    def get_params_log(self):
+        total_param = {}
+        for run in self.list_runs.values():
+            params = {}
+            for param, distribution in run.trials[0].distributions.items():
+                params[param] = distribution.log
+            total_param = total_param | params
+        return total_param
+
+    def get_params_score(self):
+        list_values = []
+        for trial in self.study.trials:
+            list_values.append(trial.params | {'score': trial.value})
+
+        df = pd.DataFrame(list_values)
+        return df
+
+class Run():
+    def __init__(self, list_trials):
+        self.trials = list_trials
+        self.state = self._build_total_state()
+        self.start = self._build_start()
+        self.end = self._build_end()
+        self.search_space = self._build_search_space()
+        self.best_score = self._build_best_score()
+
+    def _build_total_state(self):
+        state = []
+        for trial in self.trials:
+            state.append(trial.state)
+        fixed_keys = [TrialState.COMPLETE, TrialState.PRUNED, TrialState.FAIL]
+        state_count = Counter(state)
+        for key in fixed_keys:
+            state_count[key] = state_count.get(key, 0)
+        return state_count
+    
+    def _build_start(self):
+        datetime = []
+        for trial in self.trials:
+            datetime.append(trial.datetime_start)
+        return min(datetime).replace(microsecond=0)
+
+    def _build_end(self):
+        datetime = []
+        for trial in self.trials:
+            datetime.append(trial.datetime_complete)
+        return max(datetime).replace(microsecond=0)
+
+    def _build_search_space(self):
+        return self.trials[0].distributions
+    
+    def _build_best_score(self):
+        scores = []
+        for trial in self.trials:
+            scores = scores + trial.values
+        if len(scores) == 0:
+            return 0
+        else:
+            return max(scores)
+    
+    def get_state(self):
+        counts = []
+        for count in self.state.values():
+            counts.append(count)
+        total = sum(counts)
+        counts.append(total)
+        return counts
+
+
 def info_trials_from_study(trials, extended='False'):
     """
     Get a dataframe with info from all trials of a study
@@ -274,14 +504,6 @@ def get_dist_params_runs(df, params):
     columns = ['run'] + dist_params
     return df_runs[columns]
     
-def get_params_trials(trials):
-    """
-    Extract unique parameter names from a list of Optuna trials.
-    """
-    params = set()
-    for trial in trials:
-        params.update(trial.params.keys())
-    return params
     
 def info_runs_from_study(trials, extended = False):
     """
@@ -302,58 +524,7 @@ def info_runs_from_study(trials, extended = False):
         df_output = df_score
     return df_output
     
-def plot_slice(study, params=[]):
-    """
-    Generate slice plots of objective values versus specified hyperparameters for a study's completed trials.
-    """
-    # TODO Carefull not more than six hyperparameters
-    trials = study.trials
-    if len(params) == 0:
-        params = get_params_trials(trials)
-    df = info_trials_from_study(trials)
-    df_complete = df[df['state'] == 1].copy()
-    df_complete['score'] = df_complete['values'].apply(lambda x: x[0] if len(x) > 0 else None)
-
-    # Columns to plot
-    n_plots = len(params)
     
-    # Create subplots
-    fig, axes = plt.subplots(1, n_plots, figsize=(2*n_plots, 4), sharey=True)
-    axes = axes.flatten()
-
-    best_score =max(df_complete['score'])
-    
-    for i, col in enumerate(params):
-        axes[i].axhline(y=best_score, color='red', linestyle='--', linewidth=2, alpha=0.3)
-        axes[i].scatter(df_complete[col], df_complete['score'], alpha=0.9, color='lightblue', s=30, edgecolor='grey')
-        axes[i].set_xlabel(col)
-        axes[i].set_ylabel('Objetive value')
-        axes[i].grid(True, alpha=0.3)     
-        # Hide y-axis label for all except first plot
-        if i > 0:
-            axes[i].set_ylabel('')
-
-    plt.tight_layout()
-    plt.show()
-    
-def optuna_results(study):
-  """
-  Prints the best trial results from an Optuna study, 
-  including hyperparameter values
-  """
-  # print best results
-  print("Best trial:")
-  trial = study.best_trial
-  #importances = get_param_importances(study)
-
-  print("  Value: ", trial.value)
-  print("  Params: ")
-#  print("\t\t\tValue")
-  for key, value in trial.params.items():
-    print(f"    {key}:\t{value:.5f}")
-  #print("\t\t\tValue\t\tImportance ")
-  #for key, value in trial.params.items():
-  #  print(f"    {key}:\t{value:.5f}\t\t{importances[key]:.2f}")
 
 def save_metrics_optuna(trial, results, outputdir):
   """

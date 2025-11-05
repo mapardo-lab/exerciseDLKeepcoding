@@ -215,32 +215,3 @@ class TrainModels:
         im.set_clim(0, 1) 
         plt.title('Confusion Matrix')
         plt.show()
-
-def plot_training_curves(train_losses, val_losses, train_score, val_score, num_epochs, score, test_score=None):
-  """
-  From the model training output, the training progress is plotted 
-  for loss function and accuracy values. Optionally, accuracy for
-  the test is also plotted.
-  """
-  plt.style.use("ggplot")
-  plt.figure(figsize=(12, 5))
-  plt.subplot(1, 2, 1)
-  plt.plot(range(num_epochs), train_losses, label="Train loss")
-  plt.plot(range(num_epochs), val_losses, label="Validation loss")
-  plt.title("Training and validation loss")
-  plt.xlabel("Epoch #")
-  plt.ylabel("Loss")
-  plt.legend()
-
-  plt.subplot(1, 2, 2)
-  plt.plot(range(num_epochs), train_score, label="Train " + score)
-  plt.plot(range(num_epochs), val_score, label="Validation " + score)
-  if test_score is not None:
-    plt.axhline(y=test_score, color='red', linestyle='--', label='Test Accuracy')
-  plt.title("Training and validation " + score)
-  plt.xlabel("Epoch #")
-  plt.ylabel("Accuracy")
-  plt.legend()
-  plt.tight_layout()
-  plt.show()
-    
