@@ -19,22 +19,32 @@ A variety of models, including both classical machine learning and deep learning
 The scripts for model optimization and the reusable modules containing the functions and classes used in the tuning process are shown here.
 
 ```
-├── logisticregression_metadata1.py # logistic regression model
-├── randomforest_metadata1.py       # random forest model
-├── xgboost_metadata1.py            # XGBoost model
-├── fcnn_pca_embeddings1.py         # fully connected NN (pca)
-├── fcnn_shallow_metadata1.py       # shallow fully connected NN
-├── resnet18_layer4_images1.py      # ResNet18 model by transfer learning
-├── resnet18_pretrain_images1.py    # ResNet18 model by fine tunning (layer4)
-├── mmodal3_img1_meta1_emb1.py      # multi modal NN (Three branches)
-├── utilsProc.py                    # preprocess data
-├── utilsFT.py                      # data transformation (BaseEstimator, TransformerMixin)
-├── utilsDataset.py                 # Dataset definition
-├── utilsNN.py                      # Neuronal network architectures
-├── utilsOptuna.py                  # Optuna tools
-├── utilsPlots.py                   # plots for exploring results
-├── utilsTrain.py                   # tools for training
-└── utils.py                        # general tools
+.
+├── data
+├── environment.yaml
+├── models
+├── notebooks
+├── optuna
+│   ├── file_config
+│   ├── optuna_DL_exercise.db
+│   └── run_config
+├── README.md
+└── src
+    ├── model_prediction_DL.py
+    ├── model_prediction_ML.py
+    ├── run_optuna_DL.py
+    ├── run_optuna_ML.py
+    ├── training_model_DL.py
+    ├── training_model_ML.py
+    ├── utilsDataset.py
+    ├── utilsFT.py
+    ├── utilsModel.py
+    ├── utilsNN.py
+    ├── utilsOptuna.py
+    ├── utilsPlots.py
+    ├── utilsPreproc.py
+    └── utils.py
+
 ```
 
 # Reproducibility
