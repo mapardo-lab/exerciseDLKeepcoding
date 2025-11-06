@@ -44,3 +44,21 @@ def plot_bars(df: pd.DataFrame, features: list , n_rows: int, n_cols: int):
     plt.xticks(rotation=45)
     plt.tight_layout()  # Prevent label clipping
   plt.show()
+
+def confusion_matrix_plot(cm):
+    row_sums = cm.sum(axis=1, keepdims=True)
+    normalized = cm / row_sums
+
+    # Plot with actual counts as numbers but normalized values for colors
+    plt.figure(figsize=(6, 4))
+    sns.heatmap(normalized,  # Use normalized for colors
+                annot=cm,       # Use actual counts for annotations
+                fmt='d',        # Format annotations as integers
+                cmap='Blues',
+                vmin=0,         # Set minimum color value
+                vmax=1,         # Set maximum color value
+                cbar_kws={'label': 'Normalized values by rows'})
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title('Confusion Matrix')
+    plt.show()

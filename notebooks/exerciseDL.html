@@ -108,7 +108,7 @@ Figure&nbsp;1: Density plots for each engagement feature
 </div>
 </div>
 <p>It is reasonable to create a new feature from the difference between <strong>Likes</strong> and <strong>Dislikes</strong>. Negative values would indicate low engagement and positive values would suggest high engagement. This new feature show a multimodal distribution with several sharp peaks on the left and a flat peak on the right (see figure <a href="#fig-density-like-dislike" class="quarto-xref">Figure&nbsp;2</a>)</p>
-<div id="cell-fig-density-like-dislike" class="cell">
+<div id="cell-fig-density-like-dislike" class="cell" data-execution_count="10">
 <div class="cell-output cell-output-display">
 <div id="fig-density-like-dislike" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -430,6 +430,46 @@ Figure&nbsp;13: Density plots for each engagement feature
 <p><strong>FCNN Shallow</strong> and <strong>ResNet18 Pre</strong> yield results comparable to traditional Machine Learning models. Using the pre-trained ResNet18 via transfer learning achieves a balance between precision and sensitivity, improving precision at the cost of some sensitivity reduction. <strong>FCNN_pca</strong> demonstrates poor performance, inferior to all ML models.</p>
 <p><strong>ResNet18 Layer4</strong>, <strong>Multi Modal Pre</strong>, and <strong>Multi Modal Layer4</strong> models achieve significantly higher F1-scores, all exceeding 0.84. However, <strong>ResNet18 Layer4</strong> shows substantial overfitting, with a high training F1-score that doesn’t generalize to validation. In contrast, both Multi Modal models show consistent performance across training and validation sets. <strong>Multi Modal Pre</strong> delivers the best overall results, with precision exceeding 0.9.</p>
 <p>The choice between top-performing models depends on the specific objective. For higher precision in detecting high-engagement POIs, <strong>Multi Modal Pre</strong> is recommended. When higher sensitivity is required for this task, <strong>Random Forest</strong> becomes the more suitable choice.</p>
+</section>
+<section id="final-models" class="level2">
+<h2 class="anchored" data-anchor-id="final-models">Final models</h2>
+<p>Based on the results above, two models were trained using 80% of the dataset, with validation performed on the remaining 20%. The results are presented below.</p>
+<section id="random-forest-model" class="level3">
+<h3 class="anchored" data-anchor-id="random-forest-model">Random forest model</h3>
+<p>The Random Forest model successfully identifies all high-engagement POIs (Sensitivity = 1.0), but at the cost of including some false positives, resulting in a Precision of 0.71 (see confusion matrix <a href="#fig-cmrf" class="quarto-xref">Figure&nbsp;14</a>). This trade-off yields an F1-score of 0.71 on the testing dataset.</p>
+<div id="cell-fig-cmrf" class="cell">
+<div class="cell-output cell-output-display">
+<div id="fig-cmrf" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-cmrf-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="exerciseDL_files/figure-html/fig-cmrf-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-cmrf-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;14: Confusion matrix for random forest model
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="multi-modal-model-with-pretrained-weights-multi-modal-pre" class="level3">
+<h3 class="anchored" data-anchor-id="multi-modal-model-with-pretrained-weights-multi-modal-pre">Multi modal model with pretrained weights (Multi Modal Pre)</h3>
+<p>This model demonstrates a strong balance between sensitivity and precision, with values of 0.88 and 0.84 respectively (see confusion matrix in <a href="#fig-cmmm" class="quarto-xref">Figure&nbsp;15</a>). The resulting F1-score is 0.86.</p>
+<div id="cell-fig-cmmm" class="cell">
+<div class="cell-output cell-output-display">
+<div id="fig-cmmm" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-cmmm-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="exerciseDL_files/figure-html/fig-cmmm-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-cmmm-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;15: Confusion matrix for multi modal model
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
 </section>
 
 </main>

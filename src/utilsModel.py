@@ -1,10 +1,8 @@
 import pandas as pd
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
-from sklearn.metrics import ConfusionMatrixDisplay
-import matplotlib.pyplot as plt
 from utils import load_objects, save_objects
+from utilsPlots import confusion_matrix_plot
 
 class ModelBase():
     def __init__(self, model_config, params, fixed_params = None):
@@ -205,13 +203,5 @@ class TrainModels:
 
         print(f"Confusion matrix: {info['scores']['confusion_matrix'][0]}")
 
-        arr = np.array(info['scores']['confusion_matrix'][0], dtype=float)
-        row_sums = arr.sum(axis=1, keepdims=True)
-        normalized = arr / row_sums
-
-        disp = ConfusionMatrixDisplay(confusion_matrix=normalized)
-        disp.plot(cmap='Blues')
-        im = disp.im_  
-        im.set_clim(0, 1) 
-        plt.title('Confusion Matrix')
-        plt.show()
+        cm = np.array(info['scores']['confusion_matrix'][0] , dtype=int)
+        confusion_matrix_plot(cm)
