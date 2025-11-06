@@ -6,7 +6,7 @@ This work leverages available POI data to develop classification models that pre
 
 After evaluating several classical machine learning and deep learning models using a protocol based on Optuna library, two models were selected for production use in identifying high-engagement POIs.
 
-A Random Forest model was trained and demonstrates the ability to identify all high-engagement POIs using tabular metadata, with the trade-off of including some false positives.
+A Random Forest model was trained and demonstrates the ability to identify all high-engagement POIs using tabular metadata, with the trade-off of including some false positives (precision = 0.71).
 
 A second model featuring a multimodal architecture was developed, combining tabular metadata with POI images. This model achieves a balanced performance between sensitivity (0.88) and precision (0.84).
 
