@@ -8,9 +8,9 @@ After evaluating several classical machine learning and deep learning models usi
 
 A Random Forest model was trained and demonstrates the ability to identify all high-engagement POIs using tabular metadata, with the trade-off of including some false positives (precision = 0.71).
 
-A second model featuring a multimodal architecture was developed, combining tabular metadata with POI images. This model achieves a balanced performance between sensitivity (0.88) and precision (0.84).
+A second Deep Learning model featuring a multimodal architecture was developed, combining tabular metadata with POI images. This model achieves a balanced performance between sensitivity (0.88) and precision (0.84).
 
-Detailed results are available in the `notebooks` directory: see **exerciseDL.pdf** or **exerciseDL.html**
+Detailed results are available in the `notebooks` directory (see **exerciseDL.pdf** or **exerciseDL.html**)
 
 # Methodology
 
@@ -20,7 +20,6 @@ The methodology was designed to streamline the optimization process by enabling 
 
 # Code Structure
 
-The scripts for model optimization and the reusable modules containing the functions and classes used in the tuning process are shown here.
 
 ```
 .
