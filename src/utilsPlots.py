@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from sklearn.feature_selection import mutual_info_classif
 
 def plot_density(df: pd.DataFrame, features: list , n_rows: int, n_cols: int):
   """
@@ -61,4 +62,16 @@ def confusion_matrix_plot(cm):
     plt.xlabel('Predicted')
     plt.ylabel('Actual')
     plt.title('Confusion Matrix')
+    plt.show()
+
+def plot_mutual_info_features_target(X, y):
+    mi = mutual_info_classif(X, y).tolist()
+    df_mi = pd.DataFrame({'Feature': X.columns, 'MI': mi})
+
+    # Create bar plot
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x='MI', y='Feature', data=df_mi.sort_values('MI', ascending = False))
+    plt.title('Mutual information between features and target')
+    plt.ylabel('')
+    plt.xlabel('')
     plt.show()
