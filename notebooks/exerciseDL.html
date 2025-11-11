@@ -305,7 +305,7 @@ Figure&nbsp;13: Density plots for each engagement feature
 <h2 class="anchored" data-anchor-id="mutual-information-between-features-and-target">Mutual information between features and target</h2>
 <p>Of the dummy variables created from the ‘categories’ feature, ‘Escultura’ is by far the most strongly associated with the target (see <a href="#fig-mi" class="quarto-xref">Figure&nbsp;14</a>). Other categorical dummy variables with notable association include ‘Arquitectura’, ‘Patrimonio’, ‘Ocio’, ‘Misterio’, and ‘Ciencia’.</p>
 <p>Regarding the other features, num_tags and locationLon demonstrate the highest association with the target, while xps and tier also show a measurable relationship.</p>
-<div id="cell-fig-mi" class="cell">
+<div id="cell-fig-mi" class="cell" data-execution_count="31">
 <div class="cell-output cell-output-display">
 <div id="fig-mi" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -314,6 +314,38 @@ Figure&nbsp;13: Density plots for each engagement feature
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-mi-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Figure&nbsp;14: Mutual information between features and target
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="images-and-engagement-relationship" class="level2">
+<h2 class="anchored" data-anchor-id="images-and-engagement-relationship">Images and engagement relationship</h2>
+<p>Images with extreme engagement values are displayed to uncover insights about the relationship between engagement and visual content (see <a href="#fig-high-image" class="quarto-xref">Figure&nbsp;15</a> and <a href="#fig-low-image" class="quarto-xref">Figure&nbsp;16</a>). With these examples, a clear association between images and engagement is not demostrated.</p>
+<div id="cell-fig-high-image" class="cell" data-execution_count="47">
+<div class="cell-output cell-output-display">
+<div id="fig-high-image" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-high-image-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="exerciseDL_files/figure-html/fig-high-image-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-high-image-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;15: Images for POIs with higher engagement
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div id="cell-fig-low-image" class="cell">
+<div class="cell-output cell-output-display">
+<div id="fig-low-image" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-low-image-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="exerciseDL_files/figure-html/fig-low-image-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-low-image-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;16: Images for POIs with lower engagement
 </figcaption>
 </figure>
 </div>
@@ -455,8 +487,8 @@ Figure&nbsp;14: Mutual information between features and target
 <p>Based on the results above, two models were trained using 80% of the dataset, with validation performed on the remaining 20%. The results are presented below.</p>
 <section id="random-forest-model" class="level3">
 <h3 class="anchored" data-anchor-id="random-forest-model">Random forest model</h3>
-<p>The Random Forest model successfully identifies all high-engagement POIs (Sensitivity = 1.0), but at the cost of including some false positives, resulting in a Precision of 0.71 (see confusion matrix <a href="#fig-cmrf" class="quarto-xref">Figure&nbsp;15</a>). This trade-off yields an F1-score of 0.71 on the testing dataset.</p>
-<div id="cell-fig-cmrf" class="cell">
+<p>The Random Forest model successfully identifies all high-engagement POIs (Sensitivity = 1.0), but at the cost of including some false positives, resulting in a Precision of 0.71 (see confusion matrix <a href="#fig-cmrf" class="quarto-xref">Figure&nbsp;17</a>). This trade-off yields an F1-score of 0.71 on the testing dataset.</p>
+<div id="cell-fig-cmrf" class="cell" data-execution_count="36">
 <div class="cell-output cell-output-display">
 <div id="fig-cmrf" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -464,7 +496,7 @@ Figure&nbsp;14: Mutual information between features and target
 <img src="exerciseDL_files/figure-html/fig-cmrf-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-cmrf-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;15: Confusion matrix for random forest model
+Figure&nbsp;17: Confusion matrix for random forest model
 </figcaption>
 </figure>
 </div>
@@ -473,8 +505,8 @@ Figure&nbsp;15: Confusion matrix for random forest model
 </section>
 <section id="multi-modal-model-with-pretrained-weights-multi-modal-pre" class="level3">
 <h3 class="anchored" data-anchor-id="multi-modal-model-with-pretrained-weights-multi-modal-pre">Multi modal model with pretrained weights (Multi Modal Pre)</h3>
-<p>This model demonstrates a strong balance between sensitivity and precision, with values of 0.88 and 0.84 respectively (see confusion matrix in <a href="#fig-cmmm" class="quarto-xref">Figure&nbsp;16</a>). The resulting F1-score is 0.86.</p>
-<div id="cell-fig-cmmm" class="cell">
+<p>This model demonstrates a strong balance between sensitivity and precision, with values of 0.88 and 0.84 respectively (see confusion matrix in <a href="#fig-cmmm" class="quarto-xref">Figure&nbsp;18</a>). The resulting F1-score is 0.86.</p>
+<div id="cell-fig-cmmm" class="cell" data-execution_count="37">
 <div class="cell-output cell-output-display">
 <div id="fig-cmmm" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -482,7 +514,7 @@ Figure&nbsp;15: Confusion matrix for random forest model
 <img src="exerciseDL_files/figure-html/fig-cmmm-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-cmmm-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;16: Confusion matrix for multi modal model
+Figure&nbsp;18: Confusion matrix for multi modal model
 </figcaption>
 </figure>
 </div>

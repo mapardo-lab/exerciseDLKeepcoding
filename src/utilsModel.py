@@ -78,12 +78,12 @@ class ModelL1(ModelBase):
     def __init__(self, model_config, params, fixed_params = None):
         super().__init__(model_config, params, fixed_params)
         self.l1_lambda = params['regularization'].get('l1_lambda', fixed_params['regularization'].get('l1_lambda', 0.01))
+
     def train_epoch(self, train_loader): 
         self.model.train()
         train_loss = 0
         y_pred = np.array([])
         y_true = np.array([])
-
         for data in train_loader:
             for key, value in data.items():
                 data[key] = value.to(self.device)
@@ -105,12 +105,12 @@ class ModelL2(ModelBase):
     def __init__(self, model_config, params, fixed_params = None):
         super().__init__(model_config, params, fixed_params)
         self.l2_lambda = params['regularization'].get('l2_lambda', fixed_params['regularization'].get('l2_lambda', 0.01))
+
     def train_epoch(self, train_loader): 
         self.model.train()
         train_loss = 0
         y_pred = np.array([])
         y_true = np.array([])
-
         for data in train_loader:
             for key, value in data.items():
                 data[key] = value.to(self.device)
