@@ -33,7 +33,6 @@ def main():
     df = load(data_file) 
 
     print('Preprocessing data... simple processing + new features')
-    # TODO As transform metadata (class with function)
     preproc_features = load_from_config(config['preproc_features'])
     preproc_target = load_from_config(config['preproc_target'])
     df_processed = preproc_target(preproc_features(df))
@@ -62,9 +61,7 @@ def main():
     print('Loading fixed parameters...')
     fixed_params = config['fixed_params']
 
-    # Configure to new framework
     # scores output
-    # TODO matrix_confusion
     print('Loading scores to monitorize...')
     scoring = load_make_scorer_from_config(config['scoring'])
 
@@ -100,21 +97,23 @@ def main():
 
     file_config = os.path.join(pkl_dir, study_name + '.pkl')
     # TODO Check if .pkl file exists. If it exists check if the configuration is the same
-    #if os.path.exists(file_config):
-    #    print('Exists')
-    print('Saving configuration...')
-    save_config = {
-        'random_state': random_state,
-        'datafile': data_file,
-        'load': load,
-        'preproc_features': preproc_features,
-        'preproc_target': preproc_target,
-        'split_test': test_size_test,
-        'proc': config['proc'],
-        'model': model,
-        'scoring': config['scoring']
-    }
-    save_objects(save_config, file_config)
+    if os.path.exists(file_config):
+        print('Configuration file found. Checking for consistency...')
+        
+    else:
+        print('Saving configuration...')
+        save_config = {
+            'random_state': random_state,
+            'datafile': data_file,
+            'load': load,
+            'preproc_features': preproc_features,
+            'preproc_target': preproc_target,
+            'split_test': test_size_test,
+            'proc': config['proc'],
+            'model': model,
+            'scoring': config['scoring']
+        }
+        save_objects(save_config, file_config)
 
     # user attributes for study
     user_attr = [
