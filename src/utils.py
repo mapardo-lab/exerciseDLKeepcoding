@@ -174,3 +174,11 @@ def calculate_scores(y_true, y_pred, scoring):
          function_score = load_function_from_config(function)
          results[score] = [function_score(y_true, y_pred)]
     return results
+
+def check_params(file_config, save_config):
+    with open(file_config, 'rb') as f:
+        saved_config = pickle.load(f)
+    if saved_config != save_config:
+        return False
+    else:
+        return True

@@ -3,6 +3,7 @@
 import optuna
 import sys
 import os
+import torch
 from datetime import datetime
 from utils import set_random_seed
 from sklearn.model_selection import train_test_split
@@ -70,7 +71,14 @@ def main():
     params = trial.user_attrs['params']
 
     # Build Model
-    model_config = config['model_config']
+    model_config = load_dict_from_config(config['model_config'])
+    scoring = load_dict_from_config(config['scoring'])
+    model_config['scoring'] = scoring
+    if config['device'] == 'gpu':
+        model_config['device'] = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    else:
+        model_config['device'] = 'cpu'
+    #model_config = config['model_config']
     model_train = model_config['train']
     train = model_train(model_config, params, fixed_params)
 

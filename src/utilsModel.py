@@ -235,3 +235,8 @@ class TrainModels:
 
         cm = np.array(info['scores']['confusion_matrix'][0] , dtype=int)
         confusion_matrix_plot(cm)
+
+    def remove_model(self, model_name):
+        self.list_of_models.pop(model_name)
+        self.save()
+        print(f'Model {model_name} removed')

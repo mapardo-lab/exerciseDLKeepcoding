@@ -5,7 +5,7 @@ import sys
 import optuna
 import torch
 from sklearn.model_selection import train_test_split
-from utils import set_random_seed, save_objects, load_yaml_config, load_from_config, load_dict_from_config
+from utils import set_random_seed, save_objects, load_yaml_config, load_from_config, load_dict_from_config, check_params
 from utilsOptuna import ObjectiveFunctionDL, create_study
 
 def main():
@@ -34,7 +34,6 @@ def main():
     df = load(data_file) 
 
     print('Preprocessing data... simple processing + new features')
-    # TODO As transform metadata (class with function)
     preproc_features = load_from_config(config['preproc_features'])
     preproc_target = load_from_config(config['preproc_target'])
     df_processed = preproc_target(preproc_features(df))
@@ -112,10 +111,6 @@ def main():
         'load_if_exists': True  # Continue if study exists
     }
     file_config = os.path.join(pkl_dir, study_name + '.pkl')
-    # TODO Check if .pkl file exists. If it exists check if the configuration is the same
-    #if os.path.exists(file_config):
-    #    print('Exists')
-    print('Saving configuration...')
     save_config = {
         'random_state': random_state,
         'datafile': data_file,
@@ -127,9 +122,21 @@ def main():
         'proc_to_fit': proc_to_fit,
         'dataset': dataset,
         'split_val': test_size_val,
-        'model_config': model_config
+        'model_config': config['model_config'],
+        'scoring': config['scoring'],
+        'device': model_config['device']
+        #'model_config': model_config
     }
-    save_objects(save_config, file_config)
+    # check if .pkl file exists. If it exists check if the configuration is the same
+    if os.path.exists(file_config):
+        print('Configuration file found. Checking for consistency.')
+        if check_params(file_config, save_config):
+            print('Consistency OK')
+        else:
+            raise Exception('Parameters configuration FAIL. Check parameter configuration')
+    else:
+        print('Saving configuration...')
+        save_objects(save_config, file_config)
 
     # user attributes for study
     user_attr = [

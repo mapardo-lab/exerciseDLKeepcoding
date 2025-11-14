@@ -4,7 +4,7 @@ import os
 import sys
 import optuna
 from sklearn.model_selection import train_test_split
-from utils import set_random_seed, save_objects, load_yaml_config, load_from_config, load_make_scorer_from_config, load_class_from_config
+from utils import set_random_seed, save_objects, load_yaml_config, load_from_config, load_make_scorer_from_config, load_class_from_config, check_params
 from utilsOptuna import ObjectiveFunctionML, create_study
 
 def main():
@@ -95,24 +95,28 @@ def main():
         'load_if_exists': True  # Continue if study exists
     }
 
+    # save parameters
     file_config = os.path.join(pkl_dir, study_name + '.pkl')
-    # TODO Check if .pkl file exists. If it exists check if the configuration is the same
+    save_config = {
+        'random_state': random_state,
+        'datafile': data_file,
+        'load': load,
+        'preproc_features': preproc_features,
+        'preproc_target': preproc_target,
+        'split_test': test_size_test,
+        'proc': config['proc'],
+        'model': model,
+        'scoring': config['scoring']
+    }
+    # check if .pkl file exists. If it exists check if the configuration is the same
     if os.path.exists(file_config):
         print('Configuration file found. Checking for consistency...')
-        
+        if check_params(file_config, save_config):
+            print('Consistency OK')
+        else:
+            raise Exception('Parameters configuration FAIL. Check parameter configuration.') 
     else:
         print('Saving configuration...')
-        save_config = {
-            'random_state': random_state,
-            'datafile': data_file,
-            'load': load,
-            'preproc_features': preproc_features,
-            'preproc_target': preproc_target,
-            'split_test': test_size_test,
-            'proc': config['proc'],
-            'model': model,
-            'scoring': config['scoring']
-        }
         save_objects(save_config, file_config)
 
     # user attributes for study
