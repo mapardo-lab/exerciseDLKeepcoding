@@ -74,6 +74,36 @@ class ModelBase():
     def save_model(self, filename):
         torch.save(self.model.state_dict(), filename + ".pth")
 
+class ModelScheduler(ModelBase):
+    def __init__(self, model_config, params, fixed_params = None):
+        super().__init__(model_config, params, fixed_params)
+        self.scheduler = model_config['scheduler'](self.optimizer, **params['scheduler'], **fixed_params['scheduler'])
+
+    def train_epoch(self, train_loader):
+        """
+        Train neural network for one epoch and return the training metrics.
+        """
+        self.model.train()
+        train_loss = 0
+        y_pred = np.array([])
+        y_true = np.array([])
+
+        for data in train_loader:
+            for key, value in data.items():
+                data[key] = value.to(self.device)
+            self.optimizer.zero_grad()
+            output = self.model(data)
+            loss = self.criterion(output, data['target'])
+            loss.backward()
+            self.optimizer.step()
+            train_loss += loss.item()
+            _, predicted = output.max(1)
+            y_true = np.concatenate([y_true, data['target'].cpu().numpy()])
+            y_pred = np.concatenate([y_pred, predicted.cpu().numpy()])
+
+        self.results_train.update(train_loss, y_true, y_pred)
+        self.scheduler.step()
+
 class ModelL1(ModelBase):
     def __init__(self, model_config, params, fixed_params = None):
         super().__init__(model_config, params, fixed_params)
