@@ -86,7 +86,6 @@ class MultiLabelBinarizerWrapper(BaseEstimator, TransformerMixin):
         
         # Extract the single column
         return X.squeeze()
-        from sklearn.compose import ColumnTransformer
 
 class TransformMetadata:
     """Factory to create different transformation configurations"""
