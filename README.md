@@ -6,9 +6,9 @@ This work leverages available POI data to develop classification models that pre
 
 After evaluating several classical machine learning and deep learning models using a protocol based on Optuna library, two models were selected for production use in identifying high-engagement POIs.
 
-A Random Forest model was trained and demonstrates the ability to identify all high-engagement POIs using tabular metadata, with the trade-off of including some false positives (precision = 0.71).
+A Random Forest model was trained and demonstrated the ability to identify all high-engagement POIs using tabular metadata, with the trade-off of including some false positives (precision = 0.71).
 
-A second Deep Learning model featuring a multimodal architecture was developed, combining tabular metadata with POI images. This model achieves a balanced performance between sensitivity (0.88) and precision (0.84).
+A second Deep Learning model featuring a multimodal architecture was developed, combining tabular metadata with POI images. This model achieved a balanced performance between sensitivity (0.88) and precision (0.84).
 
 Detailed results are available in the `notebooks` directory (see **exerciseDL.pdf** or **exerciseDL.html**)
 
@@ -16,7 +16,7 @@ Detailed results are available in the `notebooks` directory (see **exerciseDL.pd
 
 Hyperparameter optimization was performed using the **run_optuna_ML.py** and **run_optuna_DL.py** scripts, which execute the optimization procedures defined in the configuration files stored in the `optuna/run_config` directory.
 
-The methodology was designed to streamline the optimization process by enabling easy configuration of models, search spaces, and scoring metrics. All optimization results are saved in the `optuna/file_config` directory for use in subsequent steps. These optimized parameters are then utilized in the model training phase (**training_model_ML.py** and **training_model_DL.py**) to build production-ready models. The trained models can subsequently be deployed for inference using the **model_prediction_ML.py** and **model_prediction_DL.py** scripts. This comprehensive protocol ensures full traceability across all studies and experimental runs.
+The methodology was designed to streamline the optimization process by enabling easy configuration of models, search spaces, and scoring metrics. All optimization results were saved in the `optuna/file_config` directory for use in subsequent steps. These optimized parameters were then utilized in the model training phase (**training_model_ML.py** and **training_model_DL.py**) to build production-ready models. The trained models can subsequently be deployed for inference using the **model_prediction_ML.py** and **model_prediction_DL.py** scripts. This comprehensive protocol ensures full traceability across all studies and experimental runs.
 
 # Code Structure
 
